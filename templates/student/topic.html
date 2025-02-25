@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ topic_title }} - OCR A-Level Computer Science AI Tutor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OCR A-Level Computer Science AI Tutor</h1>
+            <p>{{ topic_title }}</p>
+            <nav class="student-nav">
+                <ul>
+                    <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
+                    <li><a href="{{ url_for('student_progress') }}">My Progress</a></li>
+                    <li><a href="{{ url_for('index') }}">Home</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main class="learning-container">
+            <aside class="topic-sidebar">
+                <h2>{{ topic_title }}</h2>
+                <div class="learning-modes">
+                    {% for mode, description in learning_modes.items() %}
+                        <button class="mode-btn {% if loop.first %}active{% endif %}" data-mode="{{ mode }}">{{ mode|title }}</button>
+                    {% endfor %}
+                </div>
+                
+                <div class="topic-actions">
+                    <button id="rate-understanding-btn" class="btn btn-secondary">Rate Understanding</button>
+                    <button id="record-exam-btn" class="btn btn-secondary">Record Exam Score</button>
+                </div>
+            </aside>
+            
+            <section class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Messages will appear here -->
+                    <div class="message system">Loading...</div>
+                </div>
+                
+                <div class="chat-input">
+                    <textarea id="user-input" placeholder="Ask a question..."></textarea>
+                    <button id="send-btn">Send</button>
+                </div>
+            </section>
+            
+            <!-- Rate Understanding Modal -->
+            <div id="rate-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h3>Rate Your Understanding</h3>
+                    <form id="rate-form">
+                        <div class="form-group">
+                            <label>How well do you understand this topic?</label>
+                            <div class="rating-container">
+                                <label><input type="radio" name="rating" value="1"> 1 - Very poor understanding</label>
+                                <label><input type="radio" name="rating" value="2"> 2 - Poor understanding</label>
+                                <label><input type="radio" name="rating" value="3"> 3 - Moderate understanding</label>
+                                <label><input type="radio" name="rating" value="4"> 4 - Good understanding</label>
+                                <label><input type="radio" name="rating" value="5"> 5 - Excellent understanding</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="notes">Notes (optional):</label>
+                            <textarea id="notes" name="notes"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Rating</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Record Exam Score Modal -->
+            <div id="exam-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h3>Record Exam Practice Score</h3>
+                    <form id="exam-form">
+                        <div class="form-group">
+                            <label for="question-type">Question Type:</label>
+                            <input type="text" id="question-type" name="question-type" placeholder="e.g., short answer, extended response" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="difficulty">Difficulty Level:</label>
+                            <select id="difficulty" name="difficulty" required>
+                                <option value="1">1 - Basic</option>
+                                <option value="2">2 - Intermediate</option>
+                                <option value="3">3 - Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="score">Your Score:</label>
+                            <input type="number" id="score" name="score" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="max-score">Maximum Possible Score:</label>
+                            <input type="number" id="max-score" name="max-score" min="1" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Score</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Store topic information
+        const topicCode = "{{ topic_code }}";
+        const topicTitle = "{{ topic_title }}";
+        let currentMode = "explore"; // Default mode
+    </script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resources - OCR A-Level Computer Science AI Tutor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OCR A-Level Computer Science AI Tutor</h1>
+            <p>Resource Management</p>
+            <nav class="admin-nav">
+                <ul>
+                    <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+                    <li><a href="{{ url_for('admin_resources') }}" class="active">Resources</a></li>
+                    <li><a href="{{ url_for('admin_upload') }}">Upload</a></li>
+                    <li><a href="{{ url_for('logout') }}">Logout</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main class="admin-resources">
+            <h2>Learning Resources</h2>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="resource-actions">
+                <a href="{{ url_for('admin_upload') }}" class="btn btn-primary">Upload New Resource</a>
+            </div>
+            
+            <div class="resource-table-container">
+                {% if files %}
+                    <table class="resource-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Filename</th>
+                                <th>Type</th>
+                                <th>Date Added</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file_id, filename, filetype, date_added, category in files %}
+                                <tr>
+                                    <td>{{ file_id }}</td>
+                                    <td>{{ filename }}</td>
+                                    <td>{{ filetype }}</td>
+                                    <td>{{ date_added }}</td>
+                                    <td>{{ category or 'N/A' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="no-resources">
+                        <p>No resources have been uploaded yet.</p>
+                        <a href="{{ url_for('admin_upload') }}" class="btn btn-primary">Upload Your First Resource</a>
+                    </div>
+                {% endif %}
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+        </footer>
+    </div>
+</body>
+</html>
