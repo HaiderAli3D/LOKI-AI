@@ -174,7 +174,7 @@ LEARNING_MODES = {
 class ResourceManager:
     """Manages reference materials and knowledge base for the OCR CS tutor."""
     
-    def __init__(self, resource_dir="resources", db_path="knowledge_base.db"):
+    def __init__(self, resource_dir="data/resources", db_path="data/knowledge_base.db"):
         self.resource_dir = resource_dir
         self.db_path = db_path
         self.conn = None
@@ -417,7 +417,7 @@ class ResourceManager:
 class OCRCSDatabase:
     """Manages the student's learning progress and history."""
     
-    def __init__(self, db_path="ocr_cs_tutor.db"):
+    def __init__(self, db_path="data/ocr_cs_tutor.db"):
         self.db_path = db_path
         self.conn = None
         self.init_database()

@@ -15,6 +15,7 @@ import anthropic
 import sqlite3
 import hashlib
 import shutil
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 from functools import wraps
@@ -300,30 +301,64 @@ def admin_upload():
         if 'file' not in request.files:
             flash('No file part', 'error')
             return redirect(request.url)
-            
-        file = request.files['file']
-        if file.filename == '':
-            flash('No selected file', 'error')
+        
+        files = request.files.getlist('file')
+        if not files or files[0].filename == '':
+            flash('No selected files', 'error')
             return redirect(request.url)
-            
-        if file:
-            # Save file temporarily
-            temp_path = os.path.join('/tmp', file.filename)
-            file.save(temp_path)
-            
-            # Process file
-            rm = get_resource_manager()
-            file_id = rm.add_file(temp_path)
-            if file_id:
-                rm.process_file_content(file_id)
-                flash('File processed successfully', 'success')
-            else:
-                flash('File already exists or could not be processed', 'warning')
+        
+        category = request.form.get('category')
+        
+        # Process each file
+        rm = get_resource_manager()
+        processed_count = 0
+        duplicate_count = 0
+        error_count = 0
+        
+        for file in files:
+            if file.filename == '':
+                continue
                 
-            # Remove temporary file
-            os.remove(temp_path)
+            try:
+                # Create a safe filename to avoid path issues
+                safe_filename = os.path.basename(file.filename)
+                print(f"Processing file: {safe_filename}")
+                
+                # Create temp directory if it doesn't exist
+                temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
+                os.makedirs(temp_dir, exist_ok=True)
+                
+                # Save file temporarily with a unique name to avoid conflicts
+                temp_path = os.path.join(temp_dir, f"{int(time.time())}_{safe_filename}")
+                file.save(temp_path)
+                print(f"File saved to: {temp_path}")
+                
+                # Process file
+                file_id = rm.add_file(temp_path, category)
+                print(f"File ID: {file_id}")
+                
+                if file_id:
+                    rm.process_file_content(file_id)
+                    processed_count += 1
+                else:
+                    duplicate_count += 1
+                
+                # Remove temporary file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception as e:
+                print(f"Error processing file {file.filename}: {str(e)}")
+                error_count += 1
+        
+        # Flash appropriate message based on results
+        if processed_count > 0:
+            flash(f'{processed_count} file(s) processed successfully', 'success')
+        if duplicate_count > 0:
+            flash(f'{duplicate_count} duplicate file(s) skipped', 'warning')
+        if error_count > 0:
+            flash(f'{error_count} file(s) could not be processed due to errors', 'error')
             
-            return redirect(url_for('admin_resources'))
+        return redirect(url_for('admin_resources'))
             
     return render_template('admin/upload.html')
 
@@ -582,4 +617,5 @@ def global_chat():
         return jsonify({'error': f'Error generating response: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)

@@ -1,0 +1,7 @@
+flask
+anthropic
+python-dotenv
+PyPDF2
+markdown
+gunicorn
+rich

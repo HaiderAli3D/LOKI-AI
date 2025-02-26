@@ -36,9 +36,10 @@
                 <div class="upload-form-container">
                     <form method="POST" action="{{ url_for('admin_upload') }}" enctype="multipart/form-data" class="upload-form">
                         <div class="form-group">
-                            <label for="file">Select File:</label>
-                            <input type="file" id="file" name="file" required>
+                            <label for="file">Select File(s):</label>
+                            <input type="file" id="file" name="file" multiple>
                             <p class="form-help">Supported file types: PDF, TXT, MD, PY, JAVA, C, CPP, CS</p>
+                            <p class="form-help">Hold Ctrl/Cmd to select multiple files</p>
                         </div>
                         
                         <div class="form-group">
@@ -48,7 +49,7 @@
                         </div>
                         
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Upload File</button>
+                            <button type="submit" class="btn btn-primary">Upload Files</button>
                             <a href="{{ url_for('admin_resources') }}" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
@@ -58,11 +59,12 @@
                     <h3>Upload Instructions</h3>
                     <p>To enhance the AI tutor's knowledge base:</p>
                     <ol>
-                        <li>Select a file containing OCR A-Level Computer Science content</li>
+                        <li>Select one or multiple files containing OCR A-Level Computer Science content</li>
                         <li>Optionally specify a category to help with content organization</li>
-                        <li>Click "Upload File" to process and add the content to the knowledge base</li>
+                        <li>Click "Upload Files" to process and add the content to the knowledge base</li>
                     </ol>
                     <p>The system will automatically extract text from PDFs and other documents, then categorize the content based on OCR curriculum topics.</p>
+                    <p>Duplicate files (based on content hash) will be automatically detected and skipped.</p>
                     <p>For best results, upload resources that clearly relate to specific OCR A-Level Computer Science topics.</p>
                     
                     <h3>Adding PDFs to the Textbook Viewer</h3>
