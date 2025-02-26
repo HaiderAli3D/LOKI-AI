@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ topic_title }} - OCR A-Level Computer Science AI Tutor</title>
+    <title>{{ topic_title }} - LOKI for OCR A-Level Computer Science</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
     <header>
-        <h1>OCR A-Level Computer Science AI Tutor</h1>
-        <p>{{ topic_title }}</p>
+        <h1>LOKI</h1>
+        <p>{{ topic_title }} - Learning Oriented Knowledge Interface for OCR A-Level Computer Science</p>
         <nav class="student-nav">
             <ul>
                 <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
@@ -26,7 +26,7 @@
         <!-- PDF Viewer Sidebar -->
         <div id="pdf-sidebar" class="pdf-sidebar">
             <div class="pdf-header">
-                <h3>OCR Notes</h3>
+                <h3>LOKI Notes</h3>
             </div>
             <div id="pdf-filename" class="pdf-filename">Loading...</div>
             <div id="pdf-status" class="pdf-status"></div>
@@ -128,14 +128,14 @@
             </main>
             
             <footer>
-                <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+                <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
             </footer>
         </div>
         
         <!-- Global Chat Container -->
         <div id="global-chat-container" class="global-chat-container">
             <div class="global-chat-header">
-                <h3>Computer Science Help</h3>
+                <h3>LOKI Assistant</h3>
             </div>
             <div id="global-chat-messages" class="global-chat-messages">
                 <!-- Messages will be added by JavaScript -->
