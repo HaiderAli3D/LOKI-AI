@@ -8,7 +8,7 @@ This web interface extends the command-line application to provide:
 3. Behind-the-scenes file processing and knowledge base management
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, send_from_directory
 import os
 import json
 import anthropic
@@ -86,33 +86,32 @@ def create_system_prompt():
     You are an expert OCR A-Level Computer Science tutor with extensive knowledge of the H446 specification and examination standards. Your purpose is to help students understand complex computer science concepts, practice their skills, and prepare for their examinations.
 
     TEACHING APPROACH:
-    - Start with clear, precise definitions of key concepts
+    - Start with clear, concise definitions of key concepts
     - Break down complex topics into manageable, logical steps
-    - Use analogies and real-world examples to illustrate abstract concepts
-    - Provide code examples where relevant, with detailed explanations
-    - Check understanding regularly with reflective questions
-    - Focus on building both theoretical knowledge and practical skills
-    - Summarize key points to reinforce learning
+    - Use brief analogies and examples to illustrate concepts
+    - Provide short code examples where relevant
+    - Focus on essential information and core concepts
+    - Use bullet points and numbered lists for clarity
+    - Keep explanations concise and to the point
     
     OCR A-LEVEL CURRICULUM AREAS:
     - Computer Systems (Component 01): processors, software development, data exchange, data types/structures, legal/ethical issues
     - Algorithms and Programming (Component 02): computational thinking, problem-solving, programming techniques, standard algorithms
     - Programming Project (Component 03/04): analysis, design, development, testing, evaluation
     
-    EXAM PREPARATION:
-    - Focus on the specific assessment objectives from the OCR specification
-    - Provide exam-style questions and guidance on answering techniques
-    - Offer tips on common pitfalls and misconceptions
-    - Ensure coverage of all specification points
-
+    RESPONSE LENGTH:
+    - Keep responses brief and focused
+    - Aim for 300-500 words per response
+    - Prioritize clarity and precision over exhaustive detail
+    - Use bullet points instead of paragraphs when possible
+    
     RESPONSE FORMAT:
     - Use markdown formatting for clarity
-    - For code examples, use proper syntax highlighting
-    - Structure explanations logically with clear headings
-    - Include diagrams or visual explanations when helpful (using text-based diagrams)
-    - End each explanation with summary points and check questions
+    - Structure explanations with clear headings
+    - Include only essential code examples
+    - End with 2-3 key summary points
 
-    Always maintain a supportive, patient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification.
+    Always maintain a supportive, efficient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification while respecting their time.
     """
     return system_prompt.strip()
 
@@ -158,8 +157,8 @@ def get_claude_response(prompt, conversation_history=None, topic_code=None):
         
         # Create a message and get the response
         response = client.messages.create(
-            model="claude-3-7-sonnet-20250219",
-            max_tokens=4096,
+            model="claude-3-5-haiku-20241022",
+            max_tokens=2048,
             temperature=0.7,
             system=create_system_prompt(),
             messages=messages
@@ -506,6 +505,81 @@ def student_record_exam():
     database = get_db()
     database.record_exam_practice(topic_code, question_type, difficulty, score, max_score)
     return jsonify({'success': True})
+
+@app.route('/resources/<path:filename>')
+def serve_resource(filename):
+    """Serve resource files (PDFs, etc.)."""
+    return send_from_directory('resources', filename)
+
+@app.route('/global-chat', methods=['POST'])
+def global_chat():
+    """API endpoint for general CS questions (not tied to a specific topic)."""
+    try:
+        data = request.json
+        question = data.get('question')
+        
+        if not question:
+            return jsonify({'error': 'No question provided'}), 400
+            
+        # Create a session key for global chat if it doesn't exist
+        if 'global_chat_history' not in session:
+            session['global_chat_history'] = []
+            
+        # Get conversation history from session
+        conversation_history = session.get('global_chat_history', [])
+        
+        # Check if ANTHROPIC_API_KEY is set
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
+        
+        # Create a system prompt specifically for general CS questions
+        general_system_prompt = """
+        You are an expert OCR A-Level Computer Science tutor. Answer any computer science questions concisely and accurately.
+        Focus on OCR A-Level curriculum topics, but be prepared to answer general computer science questions too.
+        Keep responses brief (200-300 words) and use bullet points where appropriate.
+        Include code examples only when necessary and keep them short.
+        End with 1-2 key takeaways.
+        """
+        
+        # Get response from Claude
+        client = get_anthropic_client()
+        
+        # Prepare messages
+        messages = []
+        for msg in conversation_history:
+            messages.append(msg)
+            
+        # Add the current question
+        messages.append({"role": "user", "content": question})
+        
+        # Create a message and get the response
+        response = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=1024,
+            temperature=0.7,
+            system=general_system_prompt,
+            messages=messages
+        )
+        
+        # Get the response text
+        response_text = response.content[0].text
+        
+        # Update conversation history (limit to last 10 messages to keep context window manageable)
+        conversation_history.append({"role": "user", "content": question})
+        conversation_history.append({"role": "assistant", "content": response_text})
+        
+        # Keep only the last 10 messages
+        if len(conversation_history) > 10:
+            conversation_history = conversation_history[-10:]
+            
+        # Update session
+        session['global_chat_history'] = conversation_history
+        
+        return jsonify({'response': response_text})
+    except Exception as e:
+        print(f"Error in global_chat: {str(e)}")
+        return jsonify({'error': f'Error generating response: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

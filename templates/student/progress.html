@@ -7,116 +7,135 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>OCR A-Level Computer Science AI Tutor</h1>
-            <p>My Progress</p>
-            <nav class="student-nav">
-                <ul>
-                    <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
-                    <li><a href="{{ url_for('student_progress') }}" class="active">My Progress</a></li>
-                    <li><a href="{{ url_for('index') }}">Home</a></li>
-                </ul>
-            </nav>
-        </header>
-        
-        <main class="progress-container">
-            <h2>Your Learning Progress</h2>
-            
-            <div class="progress-section">
-                <h3>Topic Understanding</h3>
+    <header>
+        <h1>OCR A-Level Computer Science AI Tutor</h1>
+        <p>My Progress</p>
+        <nav class="student-nav">
+            <ul>
+                <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
+                <li><a href="{{ url_for('student_progress') }}" class="active">My Progress</a></li>
+                <li><a href="{{ url_for('index') }}">Home</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <div class="page-with-chat">
+        <div class="main-content">
+            <main class="progress-container">
+                <h2>Your Learning Progress</h2>
                 
-                {% if topic_progress %}
-                    <div class="progress-table-container">
-                        <table class="progress-table">
-                            <thead>
-                                <tr>
-                                    <th>Topic</th>
-                                    <th>Last Studied</th>
-                                    <th>Proficiency</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for topic_code, topic_title, last_studied, proficiency, notes in topic_progress %}
+                <div class="progress-section">
+                    <h3>Topic Understanding</h3>
+                    
+                    {% if topic_progress %}
+                        <div class="progress-table-container">
+                            <table class="progress-table">
+                                <thead>
                                     <tr>
-                                        <td>{{ topic_title }}</td>
-                                        <td>{{ last_studied }}</td>
-                                        <td class="proficiency-rating">
-                                            {% for i in range(5) %}
-                                                {% if i < proficiency %}
-                                                    <span class="star filled">★</span>
-                                                {% else %}
-                                                    <span class="star">☆</span>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </td>
-                                        <td>{{ notes or '' }}</td>
+                                        <th>Topic</th>
+                                        <th>Last Studied</th>
+                                        <th>Proficiency</th>
+                                        <th>Notes</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="no-progress">
-                        <p>You haven't rated your understanding of any topics yet.</p>
-                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Start Learning</a>
-                    </div>
-                {% endif %}
-            </div>
-            
-            <div class="progress-section">
-                <h3>Exam Practice Results</h3>
+                                </thead>
+                                <tbody>
+                                    {% for topic_code, topic_title, last_studied, proficiency, notes in topic_progress %}
+                                        <tr>
+                                            <td>{{ topic_title }}</td>
+                                            <td>{{ last_studied }}</td>
+                                            <td class="proficiency-rating">
+                                                {% for i in range(5) %}
+                                                    {% if i < proficiency %}
+                                                        <span class="star filled">★</span>
+                                                    {% else %}
+                                                        <span class="star">☆</span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </td>
+                                            <td>{{ notes or '' }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="no-progress">
+                            <p>You haven't rated your understanding of any topics yet.</p>
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Start Learning</a>
+                        </div>
+                    {% endif %}
+                </div>
                 
-                {% if exam_progress %}
-                    <div class="progress-table-container">
-                        <table class="progress-table">
-                            <thead>
-                                <tr>
-                                    <th>Topic</th>
-                                    <th>Question Type</th>
-                                    <th>Average Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for topic_code, question_type, avg_percent in exam_progress %}
+                <div class="progress-section">
+                    <h3>Exam Practice Results</h3>
+                    
+                    {% if exam_progress %}
+                        <div class="progress-table-container">
+                            <table class="progress-table">
+                                <thead>
                                     <tr>
-                                        <td>{{ topic_code }}</td>
-                                        <td>{{ question_type }}</td>
-                                        <td>
-                                            <div class="progress-bar">
-                                                <div class="progress-fill" style="width: {{ avg_percent }}%"></div>
-                                                <span class="progress-text">{{ "%.1f"|format(avg_percent) }}%</span>
-                                            </div>
-                                        </td>
+                                        <th>Topic</th>
+                                        <th>Question Type</th>
+                                        <th>Average Score</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="no-progress">
-                        <p>You haven't recorded any exam practice scores yet.</p>
-                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Practice Exam Questions</a>
-                    </div>
-                {% endif %}
-            </div>
+                                </thead>
+                                <tbody>
+                                    {% for topic_code, question_type, avg_percent in exam_progress %}
+                                        <tr>
+                                            <td>{{ topic_code }}</td>
+                                            <td>{{ question_type }}</td>
+                                            <td>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: {{ avg_percent }}%"></div>
+                                                    <span class="progress-text">{{ "%.1f"|format(avg_percent) }}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="no-progress">
+                            <p>You haven't recorded any exam practice scores yet.</p>
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Practice Exam Questions</a>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="progress-tips">
+                    <h3>Study Tips</h3>
+                    <ul>
+                        <li>Focus on topics with lower proficiency ratings first</li>
+                        <li>Regularly practice exam-style questions to improve your scores</li>
+                        <li>Use the "Review" mode to consolidate your understanding of topics</li>
+                        <li>Try the "Code" mode for topics that involve programming concepts</li>
+                        <li>Rate your understanding after each study session to track your progress</li>
+                    </ul>
+                </div>
+            </main>
             
-            <div class="progress-tips">
-                <h3>Study Tips</h3>
-                <ul>
-                    <li>Focus on topics with lower proficiency ratings first</li>
-                    <li>Regularly practice exam-style questions to improve your scores</li>
-                    <li>Use the "Review" mode to consolidate your understanding of topics</li>
-                    <li>Try the "Code" mode for topics that involve programming concepts</li>
-                    <li>Rate your understanding after each study session to track your progress</li>
-                </ul>
-            </div>
-        </main>
+            <footer>
+                <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+            </footer>
+        </div>
         
-        <footer>
-            <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
-        </footer>
+        <!-- Global Chat Container -->
+        <div id="global-chat-container" class="global-chat-container">
+            <div class="global-chat-header">
+                <h3>Computer Science Help</h3>
+            </div>
+            <div id="global-chat-messages" class="global-chat-messages">
+                <!-- Messages will be added by JavaScript -->
+            </div>
+            <div class="global-chat-input-container">
+                <textarea id="global-chat-input" placeholder="Ask a CS question..."></textarea>
+                <button id="global-chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
     </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
 </body>
 </html>

@@ -7,46 +7,65 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>OCR A-Level Computer Science AI Tutor</h1>
-            <p>Admin Login</p>
-        </header>
+    <header>
+        <h1>OCR A-Level Computer Science AI Tutor</h1>
+        <p>Admin Login</p>
+    </header>
+    
+    <div class="page-with-chat">
+        <div class="main-content">
+            <main class="login-page">
+                <div class="login-form-container">
+                    <h2>Admin Login</h2>
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="{{ url_for('login') }}" class="login-form">
+                        <div class="form-group">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password:</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Login</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+                        </div>
+                    </form>
+                </div>
+            </main>
+            
+            <footer>
+                <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+            </footer>
+        </div>
         
-        <main class="login-page">
-            <div class="login-form-container">
-                <h2>Admin Login</h2>
-                
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                <form method="POST" action="{{ url_for('login') }}" class="login-form">
-                    <div class="form-group">
-                        <label for="username">Username:</label>
-                        <input type="text" id="username" name="username" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="password">Password:</label>
-                        <input type="password" id="password" name="password" required>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Login</button>
-                        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
-                    </div>
-                </form>
+        <!-- Global Chat Container -->
+        <div id="global-chat-container" class="global-chat-container">
+            <div class="global-chat-header">
+                <h3>Computer Science Help</h3>
             </div>
-        </main>
-        
-        <footer>
-            <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
-        </footer>
+            <div id="global-chat-messages" class="global-chat-messages">
+                <!-- Messages will be added by JavaScript -->
+            </div>
+            <div class="global-chat-input-container">
+                <textarea id="global-chat-input" placeholder="Ask a CS question..."></textarea>
+                <button id="global-chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
     </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
 </body>
 </html>

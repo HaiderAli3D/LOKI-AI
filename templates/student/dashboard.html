@@ -7,69 +7,88 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>OCR A-Level Computer Science AI Tutor</h1>
-            <p>Student Dashboard</p>
-            <nav class="student-nav">
-                <ul>
-                    <li><a href="{{ url_for('student_dashboard') }}" class="active">Topics</a></li>
-                    <li><a href="{{ url_for('student_progress') }}">My Progress</a></li>
-                    <li><a href="{{ url_for('index') }}">Home</a></li>
-                </ul>
-            </nav>
-        </header>
-        
-        <main class="student-dashboard">
-            <h2>OCR A-Level Computer Science Curriculum</h2>
-            <p class="dashboard-intro">Select a topic to start learning with your AI tutor.</p>
+    <header>
+        <h1>OCR A-Level Computer Science AI Tutor</h1>
+        <p>Student Dashboard</p>
+        <nav class="student-nav">
+            <ul>
+                <li><a href="{{ url_for('student_dashboard') }}" class="active">Topics</a></li>
+                <li><a href="{{ url_for('student_progress') }}">My Progress</a></li>
+                <li><a href="{{ url_for('index') }}">Home</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <div class="page-with-chat">
+        <div class="main-content">
+            <main class="student-dashboard">
+                <h2>OCR A-Level Computer Science Curriculum</h2>
+                <p class="dashboard-intro">Select a topic to start learning with your AI tutor.</p>
+                
+                <div class="curriculum-container">
+                    {% for component_key, component_info in curriculum.items() %}
+                        <div class="component-card">
+                            <h3>{{ component_info.title }}</h3>
+                            <ul class="topic-list">
+                                {% for topic in component_info.topics %}
+                                    {% set topic_code = topic.split()[0] %}
+                                    <li>
+                                        <a href="{{ url_for('student_topic', component=component_key, topic_code=topic_code) }}" class="topic-link">
+                                            {{ topic }}
+                                        </a>
+                                        
+                                        {% if topic_code in detailed_topics %}
+                                            <ul class="subtopic-list">
+                                                {% for subtopic in detailed_topics[topic_code].subtopics %}
+                                                    {% set subtopic_code = subtopic.split()[0] %}
+                                                    <li>
+                                                        <a href="{{ url_for('student_topic', component=component_key, topic_code=subtopic_code) }}" class="subtopic-link">
+                                                            {{ subtopic }}
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="dashboard-help">
+                    <h3>Getting Started</h3>
+                    <ol>
+                        <li>Select a topic from the curriculum above</li>
+                        <li>Choose a learning mode (Explore, Practice, Code, Review, or Test)</li>
+                        <li>Interact with your AI tutor through the chat interface</li>
+                        <li>Rate your understanding to track your progress</li>
+                    </ol>
+                    <p>The AI tutor will adapt to your learning needs and provide personalized assistance based on the OCR A-Level Computer Science specification.</p>
+                </div>
+            </main>
             
-            <div class="curriculum-container">
-                {% for component_key, component_info in curriculum.items() %}
-                    <div class="component-card">
-                        <h3>{{ component_info.title }}</h3>
-                        <ul class="topic-list">
-                            {% for topic in component_info.topics %}
-                                {% set topic_code = topic.split()[0] %}
-                                <li>
-                                    <a href="{{ url_for('student_topic', component=component_key, topic_code=topic_code) }}" class="topic-link">
-                                        {{ topic }}
-                                    </a>
-                                    
-                                    {% if topic_code in detailed_topics %}
-                                        <ul class="subtopic-list">
-                                            {% for subtopic in detailed_topics[topic_code].subtopics %}
-                                                {% set subtopic_code = subtopic.split()[0] %}
-                                                <li>
-                                                    <a href="{{ url_for('student_topic', component=component_key, topic_code=subtopic_code) }}" class="subtopic-link">
-                                                        {{ subtopic }}
-                                                    </a>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endfor %}
-            </div>
-            
-            <div class="dashboard-help">
-                <h3>Getting Started</h3>
-                <ol>
-                    <li>Select a topic from the curriculum above</li>
-                    <li>Choose a learning mode (Explore, Practice, Code, Review, or Test)</li>
-                    <li>Interact with your AI tutor through the chat interface</li>
-                    <li>Rate your understanding to track your progress</li>
-                </ol>
-                <p>The AI tutor will adapt to your learning needs and provide personalized assistance based on the OCR A-Level Computer Science specification.</p>
-            </div>
-        </main>
+            <footer>
+                <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+            </footer>
+        </div>
         
-        <footer>
-            <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
-        </footer>
+        <!-- Global Chat Container -->
+        <div id="global-chat-container" class="global-chat-container">
+            <div class="global-chat-header">
+                <h3>Computer Science Help</h3>
+            </div>
+            <div id="global-chat-messages" class="global-chat-messages">
+                <!-- Messages will be added by JavaScript -->
+            </div>
+            <div class="global-chat-input-container">
+                <textarea id="global-chat-input" placeholder="Ask a CS question..."></textarea>
+                <button id="global-chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
     </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
 </body>
 </html>

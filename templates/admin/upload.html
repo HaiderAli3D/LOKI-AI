@@ -7,68 +7,99 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>OCR A-Level Computer Science AI Tutor</h1>
-            <p>Upload Resources</p>
-            <nav class="admin-nav">
-                <ul>
-                    <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
-                    <li><a href="{{ url_for('admin_resources') }}">Resources</a></li>
-                    <li><a href="{{ url_for('admin_upload') }}" class="active">Upload</a></li>
-                    <li><a href="{{ url_for('logout') }}">Logout</a></li>
-                </ul>
-            </nav>
-        </header>
-        
-        <main class="admin-upload">
-            <h2>Upload Learning Resources</h2>
-            
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-            
-            <div class="upload-form-container">
-                <form method="POST" action="{{ url_for('admin_upload') }}" enctype="multipart/form-data" class="upload-form">
-                    <div class="form-group">
-                        <label for="file">Select File:</label>
-                        <input type="file" id="file" name="file" required>
-                        <p class="form-help">Supported file types: PDF, TXT, MD, PY, JAVA, C, CPP, CS</p>
-                    </div>
+    <header>
+        <h1>OCR A-Level Computer Science AI Tutor</h1>
+        <p>Upload Resources</p>
+        <nav class="admin-nav">
+            <ul>
+                <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_resources') }}">Resources</a></li>
+                <li><a href="{{ url_for('admin_upload') }}" class="active">Upload</a></li>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <div class="page-with-chat">
+        <div class="main-content">
+            <main class="admin-upload">
+                <h2>Upload Learning Resources</h2>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <div class="upload-form-container">
+                    <form method="POST" action="{{ url_for('admin_upload') }}" enctype="multipart/form-data" class="upload-form">
+                        <div class="form-group">
+                            <label for="file">Select File:</label>
+                            <input type="file" id="file" name="file" required>
+                            <p class="form-help">Supported file types: PDF, TXT, MD, PY, JAVA, C, CPP, CS</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="category">Category (Optional):</label>
+                            <input type="text" id="category" name="category">
+                            <p class="form-help">E.g., "1.1.1", "2.3", or leave blank for auto-categorization</p>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Upload File</button>
+                            <a href="{{ url_for('admin_resources') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="upload-instructions">
+                    <h3>Upload Instructions</h3>
+                    <p>To enhance the AI tutor's knowledge base:</p>
+                    <ol>
+                        <li>Select a file containing OCR A-Level Computer Science content</li>
+                        <li>Optionally specify a category to help with content organization</li>
+                        <li>Click "Upload File" to process and add the content to the knowledge base</li>
+                    </ol>
+                    <p>The system will automatically extract text from PDFs and other documents, then categorize the content based on OCR curriculum topics.</p>
+                    <p>For best results, upload resources that clearly relate to specific OCR A-Level Computer Science topics.</p>
                     
-                    <div class="form-group">
-                        <label for="category">Category (Optional):</label>
-                        <input type="text" id="category" name="category">
-                        <p class="form-help">E.g., "1.1.1", "2.3", or leave blank for auto-categorization</p>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Upload File</button>
-                        <a href="{{ url_for('admin_resources') }}" class="btn btn-secondary">Cancel</a>
-                    </div>
-                </form>
-            </div>
+                    <h3>Adding PDFs to the Textbook Viewer</h3>
+                    <p>To add a PDF to the textbook viewer that appears on topic pages:</p>
+                    <ol>
+                        <li>Upload your PDF file using the form above</li>
+                        <li>The file will be saved to the resources directory</li>
+                        <li>Open the file <code>static/js/pdf-viewer.js</code></li>
+                        <li>Find the <code>topicToPdfMap</code> object</li>
+                        <li>Add an entry for your PDF with the topic code and filename</li>
+                    </ol>
+                    <p>Example: <code>"2.1.1": { file: "my-textbook.pdf", page: 1 }</code></p>
+                    <p>If you want to use a single PDF for all topics, uncomment and modify the "default" entry.</p>
+                </div>
+            </main>
             
-            <div class="upload-instructions">
-                <h3>Upload Instructions</h3>
-                <p>To enhance the AI tutor's knowledge base:</p>
-                <ol>
-                    <li>Select a file containing OCR A-Level Computer Science content</li>
-                    <li>Optionally specify a category to help with content organization</li>
-                    <li>Click "Upload File" to process and add the content to the knowledge base</li>
-                </ol>
-                <p>The system will automatically extract text from PDFs and other documents, then categorize the content based on OCR curriculum topics.</p>
-                <p>For best results, upload resources that clearly relate to specific OCR A-Level Computer Science topics.</p>
-            </div>
-        </main>
+            <footer>
+                <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
+            </footer>
+        </div>
         
-        <footer>
-            <p>&copy; 2025 OCR A-Level Computer Science AI Tutor</p>
-        </footer>
+        <!-- Global Chat Container -->
+        <div id="global-chat-container" class="global-chat-container">
+            <div class="global-chat-header">
+                <h3>Computer Science Help</h3>
+            </div>
+            <div id="global-chat-messages" class="global-chat-messages">
+                <!-- Messages will be added by JavaScript -->
+            </div>
+            <div class="global-chat-input-container">
+                <textarea id="global-chat-input" placeholder="Ask a CS question..."></textarea>
+                <button id="global-chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
     </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
 </body>
 </html>
