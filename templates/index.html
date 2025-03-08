@@ -12,45 +12,26 @@
         <p>Learning Oriented Knowledge Interface for OCR A-Level Computer Science</p>
     </header>
     
-    <div class="page-with-chat">
-        <div class="main-content">
-            <main class="landing-page">
-                <div class="role-selection">
-                    <div class="role-card">
-                        <h2>Student</h2>
-                        <p>Access interactive learning resources, practice with exam-style questions, and get personalized tutoring.</p>
-                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Enter as Student</a>
-                    </div>
-                    
-                    <div class="role-card">
-                        <h2>Admin</h2>
-                        <p>Manage learning resources, upload new materials, and monitor student progress.</p>
-                        <a href="{{ url_for('login') }}" class="btn btn-secondary">Enter as Admin</a>
-                    </div>
+    <div class="container">
+        <main class="landing-page">
+            <div class="role-selection">
+                <div class="role-card">
+                    <h2>Student</h2>
+                    <p>Access interactive learning resources, practice with exam-style questions, and get personalized tutoring.</p>
+                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Enter as Student</a>
                 </div>
-            </main>
-            
-            <footer>
-                <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
-            </footer>
-        </div>
+                
+                <div class="role-card">
+                    <h2>Admin</h2>
+                    <p>Manage learning resources, upload new materials, and monitor student progress.</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary">Enter as Admin</a>
+                </div>
+            </div>
+        </main>
         
-        <!-- Global Chat Container -->
-        <div id="global-chat-container" class="global-chat-container">
-            <div class="global-chat-header">
-                <h3>LOKI Assistant</h3>
-            </div>
-            <div id="global-chat-messages" class="global-chat-messages">
-                <!-- Messages will be added by JavaScript -->
-            </div>
-            <div class="global-chat-input-container">
-                <textarea id="global-chat-input" placeholder="Ask a CS question..."></textarea>
-                <button id="global-chat-send-btn" class="btn btn-primary">Send</button>
-            </div>
-        </div>
+        <footer>
+            <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
+        </footer>
     </div>
-    
-    <!-- Scripts -->
-    <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
 </body>
 </html>

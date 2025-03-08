@@ -4,6 +4,8 @@
 let globalChatMessages;
 let globalChatInput;
 let globalChatSendBtn;
+let globalChatToggle;
+let globalChatContainer;
 
 // Initialize global chat
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,8 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     globalChatMessages = document.getElementById('global-chat-messages');
     globalChatInput = document.getElementById('global-chat-input');
     globalChatSendBtn = document.getElementById('global-chat-send-btn');
+    globalChatToggle = document.getElementById('global-chat-toggle');
+    globalChatContainer = document.getElementById('global-chat-container');
     
-    console.log('Global chat elements:', { globalChatMessages, globalChatInput, globalChatSendBtn });
+    console.log('Global chat elements:', { globalChatMessages, globalChatInput, globalChatSendBtn, globalChatToggle });
     
     // Set up event listeners
     if (globalChatSendBtn) {
@@ -32,6 +36,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Set up toggle functionality
+    if (globalChatToggle && globalChatContainer) {
+        console.log('Adding click event listener to toggle button');
+        globalChatToggle.addEventListener('click', toggleGlobalChat);
+        
+        // Check if there's a saved state in localStorage
+        const chatCollapsed = localStorage.getItem('globalChatCollapsed') === 'true';
+        if (chatCollapsed) {
+            globalChatContainer.classList.add('collapsed');
+            // Update toggle button text
+            if (globalChatToggle.querySelector('span')) {
+                globalChatToggle.querySelector('span').textContent = '▲';
+            }
+        } else {
+            // If not collapsed, set the expanded text
+            if (globalChatToggle.querySelector('span')) {
+                globalChatToggle.querySelector('span').textContent = '▼ Collapse';
+            }
+        }
+    }
+    
     // Clear any existing messages and add a welcome message
     if (globalChatMessages) {
         // Clear existing messages
@@ -40,6 +65,23 @@ document.addEventListener('DOMContentLoaded', () => {
         addGlobalChatMessage('assistant', 'Welcome to the Computer Science Help chat! Ask any A-Level CS question here.');
     }
 });
+
+// Toggle chat between expanded and collapsed states
+function toggleGlobalChat() {
+    if (globalChatContainer) {
+        globalChatContainer.classList.toggle('collapsed');
+        
+        // Update toggle button text
+        if (globalChatToggle.querySelector('span')) {
+            const isCollapsed = globalChatContainer.classList.contains('collapsed');
+            globalChatToggle.querySelector('span').textContent = isCollapsed ? '▲' : '▼ Collapse';
+        }
+        
+        // Save state to localStorage
+        const isCollapsed = globalChatContainer.classList.contains('collapsed');
+        localStorage.setItem('globalChatCollapsed', isCollapsed);
+    }
+}
 
 // Pre-written responses for global chat
 const globalChatResponses = {

@@ -932,7 +932,7 @@ footer {
 /* Global Chat */
 .page-with-chat {
     display: grid;
-    grid-template-columns: 1fr 450px;
+    grid-template-columns: 1fr 30%;
     gap: 30px;
     max-width: 1600px;
     margin: 0 auto;
@@ -940,8 +940,8 @@ footer {
 }
 
 .global-chat-container {
-    /* Default (for topic selection pages) uses 140% width */
-    width: 140%;
+    /* Responsive width based on percentage */
+    width: 100%;
     background-color: var(--card-bg);
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -955,12 +955,104 @@ footer {
     margin-right: 0;
     overflow: hidden; /* Prevent content from overflowing */
     z-index: 1; /* Ensure it appears above other content */
+    min-width: 300px;
     max-width: 800px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Collapsed chat styles */
+.global-chat-container.collapsed {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    min-height: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    border-radius: 50%;
+    margin: 0;
+    top: auto;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.global-chat-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.global-chat-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.global-chat-toggle {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.3s ease;
+}
+
+.global-chat-toggle:hover {
+    opacity: 0.8;
+}
+
+.global-chat-toggle span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.global-chat-messages {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.collapsed .global-chat-messages,
+.collapsed .global-chat-input-container {
+    display: none;
+}
+
+.collapsed .global-chat-header {
+    height: 100%;
+    width: 100%;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.collapsed .global-chat-header h3 {
+    display: none;
+}
+
+.collapsed .global-chat-toggle {
+    transform: rotate(180deg);
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 1.5rem;
 }
 
 /* Combined PDF and Chat Layout */
 .page-with-pdf-and-chat {
-    /* Changed from grid to flex so 140%-wide sidebars won’t overlap */
+    /* Changed from grid to flex so sidebars won't overlap */
     display: flex;
     flex-direction: row;
     gap: 20px;
@@ -1003,6 +1095,13 @@ footer {
     margin-left: 0.75rem;
 }
 
+.page-with-pdf-and-chat .global-chat-container {
+    width: 30%;
+    min-width: 300px;
+    max-width: 800px;
+    flex: 0 0 auto;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .role-selection {
@@ -1032,12 +1131,41 @@ footer {
         margin: 0;
     }
     
+    /* Adjust global chat for mobile */
+    .page-with-chat {
+        display: block;
+    }
+    
     .global-chat-container {
         width: 100%;
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        top: auto;
+        margin: 0;
+        border-radius: 0;
+        height: 50vh;
+        min-height: auto;
+        z-index: 100;
+        transform: translateY(0);
+        transition: transform 0.3s ease;
     }
     
     .global-chat-container.collapsed {
-        transform: translateX(100%);
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        left: auto;
+        width: 60px;
+        height: 60px;
+        min-height: 60px;
+        border-radius: 50%;
+        transform: translateY(0);
+    }
+    
+    .global-chat-header {
+        border-radius: 0;
     }
     
     .page-with-pdf-and-chat,
@@ -1065,6 +1193,11 @@ footer {
         bottom: 10px;
         top: auto;
     }
+    
+    /* Hide global chat on login page */
+    .login-page + .global-chat-container {
+        display: none;
+    }
 }
 
 /* Code Formatting */
@@ -1081,13 +1214,4 @@ code {
     background-color: #f8f9fa;
     padding: 0.2rem 0.4rem;
     border-radius: 3px;
-}
-
-
-/*Fix chat container for chat pages so the middle content expands*/
-
-.page-with-pdf-and-chat .global-chat-container {
-    width: 600px;
-    max-width: 800px;
-    flex: 0 0 auto;
 }
