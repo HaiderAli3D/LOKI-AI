@@ -1,0 +1,139 @@
+{% extends "layout.html" %}
+
+{% block title %}Manage Subscription{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="text-center mb-5">Manage Your Subscription</h1>
+    
+    {% if not has_subscription %}
+    <div class="alert alert-warning text-center mb-5">
+        <h4>You don't have an active subscription!</h4>
+        <p>You can subscribe to a plan from our <a href="{{ url_for('subscription.plans') }}">subscription plans page</a>.</p>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Current Subscription</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Plan</h5>
+                            <p class="lead">{{ subscription.plan_name }}</p>
+                            
+                            <h5>Status</h5>
+                            <p>
+                                {% if subscription.status == 'active' %}
+                                <span class="badge badge-success">Active</span>
+                                {% elif subscription.status == 'trialing' %}
+                                <span class="badge badge-info">Trial</span>
+                                {% elif subscription.status == 'past_due' %}
+                                <span class="badge badge-warning">Past Due</span>
+                                {% elif subscription.status == 'canceled' %}
+                                <span class="badge badge-danger">Canceled</span>
+                                {% else %}
+                                <span class="badge badge-secondary">{{ subscription.status }}</span>
+                                {% endif %}
+                            </p>
+                            
+                            {% if subscription.cancel_at_period_end %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-info-circle"></i> Your subscription will be canceled at the end of the current billing period.
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Current Period</h5>
+                            <p>{{ subscription.current_period_start|date }} to {{ subscription.current_period_end|date }}</p>
+                            
+                            <h5>Price</h5>
+                            <p>£{{ subscription.price }} / {{ subscription.interval }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    {% if customer_portal_url %}
+                    <a href="{{ customer_portal_url }}" class="btn btn-primary">
+                        <i class="fas fa-cog"></i> Manage Payment Methods
+                    </a>
+                    {% endif %}
+                    
+                    {% if not subscription.cancel_at_period_end and subscription.status == 'active' %}
+                    <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#cancelModal">
+                        <i class="fas fa-times"></i> Cancel Subscription
+                    </button>
+                    {% elif subscription.cancel_at_period_end %}
+                    <form action="{{ url_for('subscription.cancel_subscription') }}" method="post" class="d-inline">
+                        <input type="hidden" name="at_period_end" value="false">
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fas fa-times"></i> Cancel Immediately
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3>Subscription History</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                <tr>
+                                    <td>{{ invoice.date|date }}</td>
+                                    <td>{{ invoice.description }}</td>
+                                    <td>£{{ invoice.amount }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center">No invoice history available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cancel Subscription Modal -->
+    <div class="modal fade" id="cancelModal" tabindex="-1" role="dialog" aria-labelledby="cancelModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelModalLabel">Cancel Subscription</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to cancel your subscription?</p>
+                    <p>Your subscription will remain active until the end of your current billing period on <strong>{{ subscription.current_period_end|date }}</strong>.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Keep Subscription</button>
+                    <form action="{{ url_for('subscription.cancel_subscription') }}" method="post">
+                        <input type="hidden" name="at_period_end" value="true">
+                        <button type="submit" class="btn btn-danger">Cancel Subscription</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

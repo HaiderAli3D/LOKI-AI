@@ -1,37 +1,271 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOKI - OCR A-Level Computer Science AI Tutor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <header>
-        <h1>LOKI</h1>
-        <p>Learning Oriented Knowledge Interface for OCR A-Level Computer Science</p>
-    </header>
-    
+{% extends "layout.html" %}
+
+{% block title %}OCR A-Level Computer Science AI Tutor{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero bg-primary text-white py-5">
     <div class="container">
-        <main class="landing-page">
-            <div class="role-selection">
-                <div class="role-card">
-                    <h2>Student</h2>
-                    <p>Access interactive learning resources, practice with exam-style questions, and get personalized tutoring.</p>
-                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Enter as Student</a>
-                </div>
-                
-                <div class="role-card">
-                    <h2>Admin</h2>
-                    <p>Manage learning resources, upload new materials, and monitor student progress.</p>
-                    <a href="{{ url_for('login') }}" class="btn btn-secondary">Enter as Admin</a>
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 font-weight-bold mb-4">Master A-Level Computer Science with AI</h1>
+                <p class="lead mb-4">Our AI-powered tutor helps you understand complex computer science concepts, practice your skills, and prepare for your OCR A-Level exams.</p>
+                {% if current_user %}
+                <a href="{{ url_for('student.dashboard') }}" class="btn btn-light btn-lg">Start Learning</a>
+                {% else %}
+                <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg mr-3">Get Started</a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">Login</a>
+                {% endif %}
+            </div>
+            <div class="col-lg-6 d-none d-lg-block">
+                <img src="https://via.placeholder.com/600x400?text=AI+Tutor" alt="AI Tutor" class="img-fluid rounded shadow">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Why Choose Our AI Tutor?</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-robot text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h3>AI-Powered Learning</h3>
+                        <p>Our AI tutor adapts to your learning style and pace, providing personalized explanations and feedback.</p>
+                    </div>
                 </div>
             </div>
-        </main>
-        
-        <footer>
-            <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
-        </footer>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-book text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h3>OCR Specification Aligned</h3>
+                        <p>All content is aligned with the OCR A-Level Computer Science specification, ensuring you're learning exactly what you need.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 text-center">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h3>Track Your Progress</h3>
+                        <p>Monitor your understanding of each topic and identify areas that need more attention.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</body>
-</html>
+</section>
+
+<!-- How It Works Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">How It Works</h2>
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card h-100 border-0 bg-transparent">
+                    <div class="card-body text-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                            <span class="h3 mb-0">1</span>
+                        </div>
+                        <h4>Choose a Topic</h4>
+                        <p>Select from any topic in the OCR A-Level Computer Science curriculum.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card h-100 border-0 bg-transparent">
+                    <div class="card-body text-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                            <span class="h3 mb-0">2</span>
+                        </div>
+                        <h4>Select Learning Mode</h4>
+                        <p>Choose from explore, practice, code, review, or test modes.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card h-100 border-0 bg-transparent">
+                    <div class="card-body text-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                            <span class="h3 mb-0">3</span>
+                        </div>
+                        <h4>Learn with AI</h4>
+                        <p>Interact with our AI tutor to understand concepts and practice skills.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card h-100 border-0 bg-transparent">
+                    <div class="card-body text-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                            <span class="h3 mb-0">4</span>
+                        </div>
+                        <h4>Track Progress</h4>
+                        <p>Monitor your understanding and identify areas for improvement.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials Section -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">What Our Students Say</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                        </div>
+                        <p class="card-text">"The AI tutor helped me understand complex algorithms that I was struggling with. The explanations were clear and the practice questions really helped me prepare for my exams."</p>
+                    </div>
+                    <div class="card-footer bg-white border-0">
+                        <div class="d-flex align-items-center">
+                            <img src="https://ui-avatars.com/api/?name=Sarah+J&background=random&size=48" alt="Sarah J." class="rounded-circle mr-3">
+                            <div>
+                                <h5 class="mb-0">Sarah J.</h5>
+                                <small class="text-muted">A-Level Student</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                        </div>
+                        <p class="card-text">"I love how I can ask the AI tutor questions at any time. It's like having a personal tutor available 24/7. The progress tracking feature also helps me focus on areas where I need improvement."</p>
+                    </div>
+                    <div class="card-footer bg-white border-0">
+                        <div class="d-flex align-items-center">
+                            <img src="https://ui-avatars.com/api/?name=Michael+T&background=random&size=48" alt="Michael T." class="rounded-circle mr-3">
+                            <div>
+                                <h5 class="mb-0">Michael T.</h5>
+                                <small class="text-muted">A-Level Student</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star text-warning"></i>
+                            <i class="fas fa-star-half-alt text-warning"></i>
+                        </div>
+                        <p class="card-text">"As a teacher, I recommend this AI tutor to all my students. It provides excellent explanations and practice opportunities that complement classroom learning. The alignment with the OCR specification is spot on."</p>
+                    </div>
+                    <div class="card-footer bg-white border-0">
+                        <div class="d-flex align-items-center">
+                            <img src="https://ui-avatars.com/api/?name=David+P&background=random&size=48" alt="David P." class="rounded-circle mr-3">
+                            <div>
+                                <h5 class="mb-0">David P.</h5>
+                                <small class="text-muted">Computer Science Teacher</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">Subscription Plans</h2>
+        <div class="row justify-content-center">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header text-center">
+                        <h3 class="my-0 font-weight-bold">Basic</h3>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h2 class="card-title pricing-card-title text-center">
+                            £9.99<small class="text-muted">/ month</small>
+                        </h2>
+                        <ul class="list-unstyled mt-3 mb-4">
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Access to all topics</li>
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Basic learning modes</li>
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Progress tracking</li>
+                            <li class="mb-2 text-muted"><i class="fas fa-times text-danger mr-2"></i> Advanced practice questions</li>
+                            <li class="mb-2 text-muted"><i class="fas fa-times text-danger mr-2"></i> Exam simulation</li>
+                        </ul>
+                        <div class="mt-auto">
+                            {% if current_user %}
+                            <a href="{{ url_for('subscription.checkout', plan_id='basic') }}" class="btn btn-lg btn-block btn-outline-primary">Subscribe</a>
+                            {% else %}
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-lg btn-block btn-outline-primary">Get Started</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow">
+                    <div class="card-header text-center bg-primary text-white">
+                        <h3 class="my-0 font-weight-bold">Premium</h3>
+                        <span class="badge badge-light">Recommended</span>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h2 class="card-title pricing-card-title text-center">
+                            £19.99<small class="text-muted">/ month</small>
+                        </h2>
+                        <ul class="list-unstyled mt-3 mb-4">
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Access to all topics</li>
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> All learning modes</li>
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Advanced progress tracking</li>
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Advanced practice questions</li>
+                            <li class="mb-2"><i class="fas fa-check text-success mr-2"></i> Exam simulation</li>
+                        </ul>
+                        <div class="mt-auto">
+                            {% if current_user %}
+                            <a href="{{ url_for('subscription.checkout', plan_id='premium') }}" class="btn btn-lg btn-block btn-primary">Subscribe</a>
+                            {% else %}
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-lg btn-block btn-primary">Get Started</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="{{ url_for('subscription.plans') }}" class="btn btn-link">View all plans and details</a>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <h2 class="mb-4">Ready to excel in your A-Level Computer Science exams?</h2>
+        <p class="lead mb-4">Join thousands of students who are already benefiting from our AI tutor.</p>
+        {% if current_user %}
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-light btn-lg">Start Learning Now</a>
+        {% else %}
+        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">Sign Up Today</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

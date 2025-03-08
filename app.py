@@ -1,621 +1,134 @@
-#!/usr/bin/env python3
 """
-OCR A-Level Computer Science AI Tutor Web Interface
-
-This web interface extends the command-line application to provide:
-1. Admin interface for managing learning resources and files
-2. User interface for students to interact with the AI tutor
-3. Behind-the-scenes file processing and knowledge base management
+OCR A-Level Computer Science AI Tutor
 """
-
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, send_from_directory
 import os
-import json
-import anthropic
-import sqlite3
-import hashlib
-import shutil
-import time
-from datetime import datetime
+import logging
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
-from functools import wraps
-
-# Import existing classes from the command-line application
-from Claude_CS_Test import ResourceManager, OCRCSDatabase, OCR_CS_CURRICULUM, OCR_CS_DETAILED_TOPICS, LEARNING_MODES
-
-# Initialize Flask application
-app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "ocr_cs_tutor_secret_key")  # Change in production
-
-# Initialize resource manager and database
-# We'll create these per request to avoid thread safety issues with SQLite
-resource_manager = None
-db = None
-
-# Create a function to get the resource manager
-def get_resource_manager():
-    """Get a resource manager instance for the current request."""
-    global resource_manager
-    if resource_manager is None:
-        resource_manager = ResourceManager()
-    return resource_manager
-
-# Create a function to get the database
-def get_db():
-    """Get a database instance for the current request."""
-    global db
-    if db is None:
-        db = OCRCSDatabase()
-    return db
-
-# Register teardown function to close connections
-@app.teardown_appcontext
-def close_connections(exception):
-    """Close database connections when the request ends."""
-    global resource_manager, db
-    if resource_manager is not None:
-        resource_manager.close()
-        resource_manager = None
-    if db is not None:
-        db.close()
-        db = None
+from werkzeug.middleware.proxy_fix import ProxyFix
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
 
-# Set up Anthropic API client
-def get_anthropic_client():
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-    return anthropic.Anthropic(api_key=api_key)
+# Create Flask app
+app = Flask(__name__)
 
-# Authentication decorator
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('is_admin'):
-            flash('Admin access required', 'error')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# Configure app
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
+app.config['APPLICATION_ROOT'] = os.environ.get('APPLICATION_ROOT', '/')
+app.config['PREFERRED_URL_SCHEME'] = os.environ.get('PREFERRED_URL_SCHEME', 'http')
+app.config['SERVER_NAME'] = os.environ.get('SERVER_NAME')
 
-# Create system prompt for Claude
-def create_system_prompt():
-    """Create a specialized system prompt for the OCR CS tutor."""
-    system_prompt = """
-    You are an expert OCR A-Level Computer Science tutor with extensive knowledge of the H446 specification and examination standards. Your purpose is to help students understand complex computer science concepts, practice their skills, and prepare for their examinations.
+# Configure session security
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+app.config['REMEMBER_COOKIE_SECURE'] = os.environ.get('REMEMBER_COOKIE_SECURE', 'False').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = os.environ.get('SESSION_COOKIE_HTTPONLY', 'True').lower() == 'true'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = os.environ.get('REMEMBER_COOKIE_HTTPONLY', 'True').lower() == 'true'
 
-    TEACHING APPROACH:
-    - Start with clear, concise definitions of key concepts
-    - Break down complex topics into manageable, logical steps
-    - Use brief analogies and examples to illustrate concepts
-    - Provide short code examples where relevant
-    - Focus on essential information and core concepts
-    - Use bullet points and numbered lists for clarity
-    - Keep explanations concise and to the point
-    
-    OCR A-LEVEL CURRICULUM AREAS:
-    - Computer Systems (Component 01): processors, software development, data exchange, data types/structures, legal/ethical issues
-    - Algorithms and Programming (Component 02): computational thinking, problem-solving, programming techniques, standard algorithms
-    - Programming Project (Component 03/04): analysis, design, development, testing, evaluation
-    
-    RESPONSE LENGTH:
-    - Keep responses brief and focused
-    - Aim for 300-500 words per response
-    - Prioritize clarity and precision over exhaustive detail
-    - Use bullet points instead of paragraphs when possible
-    
-    RESPONSE FORMAT:
-    - Use markdown formatting for clarity
-    - Structure explanations with clear headings
-    - Include only essential code examples
-    - End with 2-3 key summary points
+# Configure logging
+log_level = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper())
+log_file = os.environ.get('LOG_FILE', 'logs/app.log')
 
-    Always maintain a supportive, efficient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification while respecting their time.
-    """
-    return system_prompt.strip()
+# Create logs directory if it doesn't exist
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
-# Get response from Claude
-def get_claude_response(prompt, conversation_history=None, topic_code=None):
-    """Get a response from Claude based on the prompt, conversation history, and knowledge base."""
-    try:
-        client = get_anthropic_client()
-        
-        messages = []
-        
-        # Include conversation history if provided
-        if conversation_history:
-            messages = conversation_history.copy()
-        
-        # Augment prompt with knowledge base information if available
-        augmented_prompt = prompt
-        if topic_code and resource_manager:
-            knowledge = resource_manager.get_knowledge_for_topic(topic_code)
-            
-            if knowledge:
-                # Summarize knowledge to avoid exceeding context limits
-                knowledge_text = "\n\n".join(knowledge)
-                if len(knowledge_text) > 10000:  # Limit knowledge text size
-                    knowledge_text = knowledge_text[:10000] + "..."
-                
-                augmented_prompt = f"""
-                [REFERENCE INFORMATION]
-                The following information is from OCR A-Level Computer Science resources related to topic {topic_code}:
-                
-                {knowledge_text}
-                
-                [END REFERENCE INFORMATION]
-                
-                STUDENT QUESTION:
-                {prompt}
-                
-                Please use the reference information where appropriate to give an accurate, specification-aligned response.
-                """
-        
-        # Add the current prompt
-        messages.append({"role": "user", "content": augmented_prompt})
-        
-        # Create a message and get the response
-        response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=2048,
-            temperature=0.7,
-            system=create_system_prompt(),
-            messages=messages
-        )
-        
-        # Get the response text
-        response_text = response.content[0].text
-        
-        return response_text
-        
-    except anthropic.RateLimitError:
-        return "I've reached my rate limit. Please wait a moment before trying again."
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return "Sorry, I couldn't generate a response at this time."
+logging.basicConfig(
+    level=log_level,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
+    ]
+)
 
-# Create initial prompt based on topic and mode
-def create_initial_prompt(component, main_topic, detailed_topic, mode):
-    """Create an initial prompt based on selected component, topic, subtopic, and learning mode."""
-    component_title = OCR_CS_CURRICULUM[component]['title']
-    
-    if mode == "explore":
-        return f"""
-        I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). 
-        
-        Please provide a comprehensive explanation that:
-        1. Starts with a clear definition of the key concepts
-        2. Explains the principles in detail, with a logical progression from basic to advanced
-        3. Includes practical examples that illustrate the concepts
-        4. Relates the topic to the OCR A-Level specification requirements
-        5. Highlights any common misconceptions or areas students typically find challenging
-        
-        Present the information in a clear, methodical structure with appropriate headings and subheadings.
-        """
-    elif mode == "practice":
-        return f"""
-        I'd like to practice {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
-        
-        Please provide a set of practice questions that:
-        1. Start with 1-2 basic knowledge recall questions
-        2. Follow with 2-3 application questions of medium difficulty
-        3. Include 1-2 higher-level analysis/evaluation questions (similar to exam questions)
-        4. Match the style and format of OCR exam questions
-        
-        Wait for my answer to each question before proceeding to the next one. After each answer, provide detailed feedback explaining the correct approach and marking criteria.
-        """
-    elif mode == "code":
-        return f"""
-        I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}) through practical coding examples.
-        
-        Please provide:
-        1. Code examples that demonstrate the key programming concepts related to this topic
-        2. A step-by-step explanation of the code, explaining each section clearly
-        3. Common coding patterns and techniques related to this topic
-        4. Practical exercises I can try, with gradually increasing complexity
-        
-        Use pseudocode and/or Python for the examples, matching the style used in OCR exam questions.
-        """
-    elif mode == "review":
-        return f"""
-        I'd like to review {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
-        
-        Please create a comprehensive revision summary that:
-        1. Outlines all the key points and concepts that I need to know
-        2. Highlights the most important information for exam purposes
-        3. Provides a concise reference list of definitions, algorithms, or formulas
-        4. Indicates connections with other parts of the specification
-        5. Includes quick recall questions to test my understanding
-        
-        Structure this as a revision guide with clear sections and bullet points where appropriate.
-        """
-    elif mode == "test":
-        return f"""
-        I'd like to test my knowledge of {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
-        
-        Please create a mini-assessment with:
-        1. 4-6 exam-style questions covering different aspects of this topic
-        2. A mix of question types including short answer and extended response
-        3. Questions that match the OCR examination style and format
-        4. Clear marking scheme and grade boundaries
-        
-        Present all questions at once, then wait for my complete submission before providing feedback and a grade.
-        """
-    else:
-        return f"I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). Please help me understand this topic in detail."
+# Configure ProxyFix for proper IP handling behind proxies
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
+# Initialize database
+from config.database_config import database
+database.init_app(app)
+
+# Initialize Firebase
+from config.firebase_config import firebase
+firebase.init_app(app)
+
+# Initialize Stripe
+from config.stripe_config import stripe_config
+stripe_config.init_app(app)
+
+# Initialize AWS
+from config.aws_config import aws_config
+aws_config.init_app(app)
+
+# Initialize login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login'
+login_manager.login_message_category = 'info'
+
+@login_manager.user_loader
+def load_user(user_id):
+    from models.user import User
+    return User.query.get(int(user_id))
+
+# Register blueprints
+from routes import register_blueprints
+register_blueprints(app)
+
+# Error handlers
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    app.logger.error(f"Internal server error: {e}")
+    return render_template('errors/500.html'), 500
+
+# Context processors
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
+
+@app.context_processor
+def inject_user_subscription():
+    if current_user.is_authenticated:
+        return {
+            'has_subscription': current_user.has_active_subscription(),
+            'subscription': current_user.subscription
+        }
+    return {'has_subscription': False, 'subscription': None}
+
+# Before request handlers
+@app.before_request
+def check_maintenance_mode():
+    maintenance_mode = os.environ.get('MAINTENANCE_MODE', 'False').lower() == 'true'
+    if maintenance_mode and request.path != '/maintenance' and not request.path.startswith('/static/'):
+        return render_template('errors/maintenance.html'), 503
 
 # Routes
-@app.route('/')
-def index():
-    """Home page with options to enter as admin or student."""
-    return render_template('index.html')
+@app.route('/maintenance')
+def maintenance():
+    return render_template('errors/maintenance.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Login page for admin access."""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # For development - use environment variables in production
-        admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'password')
-        
-        # Simple authentication
-        if username == admin_username and password == admin_password:
-            session['is_admin'] = True
-            return redirect(url_for('admin_dashboard'))
-        else:
-            flash('Invalid credentials', 'error')
-            
-    return render_template('login.html')
+@app.route('/health')
+def health_check():
+    """Health check endpoint for AWS"""
+    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
 
-@app.route('/logout')
-def logout():
-    """Logout user."""
-    session.clear()
-    return redirect(url_for('index'))
-
-# Admin routes
-@app.route('/admin/dashboard')
-@admin_required
-def admin_dashboard():
-    """Admin dashboard."""
-    return render_template('admin/dashboard.html')
-
-@app.route('/admin/resources')
-@admin_required
-def admin_resources():
-    """View all resources."""
-    rm = get_resource_manager()
-    files = rm.get_all_file_info()
-    return render_template('admin/resources.html', files=files)
-
-@app.route('/admin/upload', methods=['GET', 'POST'])
-@admin_required
-def admin_upload():
-    """Upload resources."""
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file part', 'error')
-            return redirect(request.url)
-        
-        files = request.files.getlist('file')
-        if not files or files[0].filename == '':
-            flash('No selected files', 'error')
-            return redirect(request.url)
-        
-        category = request.form.get('category')
-        
-        # Process each file
-        rm = get_resource_manager()
-        processed_count = 0
-        duplicate_count = 0
-        error_count = 0
-        
-        for file in files:
-            if file.filename == '':
-                continue
-                
-            try:
-                # Create a safe filename to avoid path issues
-                safe_filename = os.path.basename(file.filename)
-                print(f"Processing file: {safe_filename}")
-                
-                # Create temp directory if it doesn't exist
-                temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
-                os.makedirs(temp_dir, exist_ok=True)
-                
-                # Save file temporarily with a unique name to avoid conflicts
-                temp_path = os.path.join(temp_dir, f"{int(time.time())}_{safe_filename}")
-                file.save(temp_path)
-                print(f"File saved to: {temp_path}")
-                
-                # Process file
-                file_id = rm.add_file(temp_path, category)
-                print(f"File ID: {file_id}")
-                
-                if file_id:
-                    rm.process_file_content(file_id)
-                    processed_count += 1
-                else:
-                    duplicate_count += 1
-                
-                # Remove temporary file
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except Exception as e:
-                print(f"Error processing file {file.filename}: {str(e)}")
-                error_count += 1
-        
-        # Flash appropriate message based on results
-        if processed_count > 0:
-            flash(f'{processed_count} file(s) processed successfully', 'success')
-        if duplicate_count > 0:
-            flash(f'{duplicate_count} duplicate file(s) skipped', 'warning')
-        if error_count > 0:
-            flash(f'{error_count} file(s) could not be processed due to errors', 'error')
-            
-        return redirect(url_for('admin_resources'))
-            
-    return render_template('admin/upload.html')
-
-# Student routes
-@app.route('/student/dashboard')
-def student_dashboard():
-    """Student dashboard with topic selection."""
-    return render_template('student/dashboard.html', 
-                          curriculum=OCR_CS_CURRICULUM,
-                          detailed_topics=OCR_CS_DETAILED_TOPICS)
-
-@app.route('/student/topic/<component>/<topic_code>')
-def student_topic(component, topic_code):
-    """Topic learning page."""
-    # Find the topic title
-    topic_title = None
-    for topic in OCR_CS_CURRICULUM[component]['topics']:
-        if topic.startswith(topic_code):
-            topic_title = topic
-            break
+# Initialize app
+with app.app_context():
+    # Create database tables if they don't exist
+    database.create_all()
     
-    # If it's a detailed topic, get the title from detailed topics
-    if not topic_title and topic_code in OCR_CS_DETAILED_TOPICS:
-        topic_title = OCR_CS_DETAILED_TOPICS[topic_code]['title']
-    
-    return render_template('student/topic.html', 
-                          component=component, 
-                          topic_code=topic_code,
-                          topic_title=topic_title,
-                          learning_modes=LEARNING_MODES)
+    # Create required directories
+    os.makedirs('logs', exist_ok=True)
+    os.makedirs('migrations', exist_ok=True)
+    os.makedirs('temp_uploads', exist_ok=True)
+    os.makedirs('resources', exist_ok=True)
 
-@app.route('/student/initial-prompt', methods=['POST'])
-def student_initial_prompt():
-    """API endpoint for getting initial prompt based on topic and mode."""
-    try:
-        data = request.json
-        topic_code = data.get('topic_code')
-        mode = data.get('mode', 'explore')
-        
-        # Find the component and topic
-        component = None
-        main_topic = None
-        detailed_topic = None
-        
-        # Search for the topic in the curriculum
-        for comp, info in OCR_CS_CURRICULUM.items():
-            for topic in info['topics']:
-                if topic.startswith(topic_code):
-                    component = comp
-                    main_topic = topic
-                    detailed_topic = topic
-                    break
-            if component:
-                break
-        
-        # If it's a detailed topic, get it from detailed topics
-        if not component and topic_code in OCR_CS_DETAILED_TOPICS:
-            # Find the parent topic
-            parent_code = '.'.join(topic_code.split('.')[:2])
-            for comp, info in OCR_CS_CURRICULUM.items():
-                for topic in info['topics']:
-                    if topic.startswith(parent_code):
-                        component = comp
-                        main_topic = topic
-                        detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
-                        break
-                if component:
-                    break
-        
-        if not component or not main_topic:
-            return jsonify({'error': 'Topic not found'})
-        
-        # Create initial prompt
-        initial_prompt = create_initial_prompt(component, main_topic, detailed_topic, mode)
-        
-        # Check if ANTHROPIC_API_KEY is set
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
-        
-        # Get response from Claude
-        response = get_claude_response(initial_prompt, topic_code=topic_code)
-        
-        # Start a new session in the database
-        database = get_db()
-        session_id = database.start_session([component, main_topic, detailed_topic])
-        
-        # Store session ID in Flask session
-        session['db_session_id'] = session_id
-        session['current_topic'] = main_topic
-        session['current_detailed_topic'] = detailed_topic
-        
-        # Add messages to database
-        database.add_message(session_id, "user", initial_prompt)
-        database.add_message(session_id, "assistant", response)
-        
-        return jsonify({'response': response})
-    except Exception as e:
-        print(f"Error in student_initial_prompt: {str(e)}")
-        return jsonify({'error': f'Error generating initial response: {str(e)}'}), 500
-
-@app.route('/student/chat', methods=['POST'])
-def student_chat():
-    """API endpoint for chat interactions."""
-    try:
-        data = request.json
-        question = data.get('question')
-        topic_code = data.get('topic_code')
-        mode = data.get('mode', 'explore')
-        
-        # Get session ID from Flask session
-        session_id = session.get('db_session_id')
-        
-        # Get conversation history from database
-        database = get_db()
-        conversation_history = []
-        if session_id:
-            messages = database.get_session_messages(session_id)
-            for _, role, content in messages:
-                conversation_history.append({"role": role, "content": content})
-        
-        # Check if ANTHROPIC_API_KEY is set
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
-        
-        # Get response from Claude
-        response = get_claude_response(question, conversation_history, topic_code)
-        
-        # Add messages to database
-        if session_id:
-            database.add_message(session_id, "user", question)
-            database.add_message(session_id, "assistant", response)
-        
-        return jsonify({'response': response})
-    except Exception as e:
-        print(f"Error in student_chat: {str(e)}")
-        return jsonify({'error': f'Error generating response: {str(e)}'}), 500
-
-@app.route('/student/progress')
-def student_progress():
-    """View student progress."""
-    database = get_db()
-    topic_progress = database.get_topic_progress()
-    exam_progress = database.get_exam_progress()
-    return render_template('student/progress.html', 
-                          topic_progress=topic_progress,
-                          exam_progress=exam_progress)
-
-@app.route('/student/rate-topic', methods=['POST'])
-def student_rate_topic():
-    """Rate understanding of a topic."""
-    data = request.json
-    topic_code = data.get('topic_code')
-    topic_title = data.get('topic_title')
-    rating = data.get('rating')
-    notes = data.get('notes', '')
-    
-    if not topic_code or not topic_title or not rating:
-        return jsonify({'error': 'Missing required fields'})
-    
-    database = get_db()
-    database.update_topic_progress(topic_code, topic_title, rating, notes)
-    return jsonify({'success': True})
-
-@app.route('/student/record-exam', methods=['POST'])
-def student_record_exam():
-    """Record exam practice results."""
-    data = request.json
-    topic_code = data.get('topic_code')
-    question_type = data.get('question_type')
-    difficulty = data.get('difficulty')
-    score = data.get('score')
-    max_score = data.get('max_score')
-    
-    if not all([topic_code, question_type, difficulty, score, max_score]):
-        return jsonify({'error': 'Missing required fields'})
-    
-    database = get_db()
-    database.record_exam_practice(topic_code, question_type, difficulty, score, max_score)
-    return jsonify({'success': True})
-
-@app.route('/resources/<path:filename>')
-def serve_resource(filename):
-    """Serve resource files (PDFs, etc.)."""
-    return send_from_directory('resources', filename)
-
-@app.route('/global-chat', methods=['POST'])
-def global_chat():
-    """API endpoint for general CS questions (not tied to a specific topic)."""
-    try:
-        data = request.json
-        question = data.get('question')
-        
-        if not question:
-            return jsonify({'error': 'No question provided'}), 400
-            
-        # Create a session key for global chat if it doesn't exist
-        if 'global_chat_history' not in session:
-            session['global_chat_history'] = []
-            
-        # Get conversation history from session
-        conversation_history = session.get('global_chat_history', [])
-        
-        # Check if ANTHROPIC_API_KEY is set
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
-        
-        # Create a system prompt specifically for general CS questions
-        general_system_prompt = """
-        You are an expert OCR A-Level Computer Science tutor. Answer any computer science questions concisely and accurately.
-        Focus on OCR A-Level curriculum topics, but be prepared to answer general computer science questions too.
-        Keep responses brief (200-300 words) and use bullet points where appropriate.
-        Include code examples only when necessary and keep them short.
-        End with 1-2 key takeaways.
-        """
-        
-        # Get response from Claude
-        client = get_anthropic_client()
-        
-        # Prepare messages
-        messages = []
-        for msg in conversation_history:
-            messages.append(msg)
-            
-        # Add the current question
-        messages.append({"role": "user", "content": question})
-        
-        # Create a message and get the response
-        response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=1024,
-            temperature=0.7,
-            system=general_system_prompt,
-            messages=messages
-        )
-        
-        # Get the response text
-        response_text = response.content[0].text
-        
-        # Update conversation history (limit to last 10 messages to keep context window manageable)
-        conversation_history.append({"role": "user", "content": question})
-        conversation_history.append({"role": "assistant", "content": response_text})
-        
-        # Keep only the last 10 messages
-        if len(conversation_history) > 10:
-            conversation_history = conversation_history[-10:]
-            
-        # Update session
-        session['global_chat_history'] = conversation_history
-        
-        return jsonify({'response': response_text})
-    except Exception as e:
-        print(f"Error in global_chat: {str(e)}")
-        return jsonify({'error': f'Error generating response: {str(e)}'}), 500
-
+# Run app
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=os.environ.get('FLASK_ENV', 'production') == 'development')
