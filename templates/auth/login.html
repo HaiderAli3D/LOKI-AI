@@ -1,14 +1,20 @@
 {% extends "layout.html" %}
 
-{% block title %}Login{% endblock %}
+{% block title %}{{ 'Admin Login' if is_admin_login else 'Student Login' }}{% endblock %}
 
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">Login</h3>
+                <div class="card-header {{ 'bg-dark' if is_admin_login else 'bg-primary' }} text-white">
+                    <h3 class="mb-0">
+                        {% if is_admin_login %}
+                        <i class="fas fa-user-shield mr-2"></i> Admin Login
+                        {% else %}
+                        <i class="fas fa-user-graduate mr-2"></i> Student Login
+                        {% endif %}
+                    </h3>
                 </div>
                 <div class="card-body">
                     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -19,7 +25,10 @@
                         {% endif %}
                     {% endwith %}
                     
-                    <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+                    
+                    <form id="loginForm" method="POST" action="{{ url_for('auth.login', role=('admin' if is_admin_login else 'student')) }}">
+                        <input type="hidden" name="role" value="{{ 'admin' if is_admin_login else 'student' }}">
                         <div class="form-group">
                             <label for="email">Email</label>
                             <input type="email" class="form-control" id="email" name="email" required>
@@ -38,7 +47,11 @@
                     <hr>
                     
                     <div class="text-center">
+                        {% if is_admin_login %}
+                        <p><a href="{{ url_for('auth.login') }}">Student Login</a></p>
+                        {% else %}
                         <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+                        {% endif %}
                         <p><a href="{{ url_for('auth.reset_password') }}">Forgot your password?</a></p>
                     </div>
                 </div>
@@ -46,4 +59,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 {% endblock %}

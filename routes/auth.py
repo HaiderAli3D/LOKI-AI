@@ -14,17 +14,31 @@ from datetime import datetime
 def login():
     """Login page"""
     if current_user.is_authenticated:
+        if current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
         return redirect(url_for('student.dashboard'))
+    
+    # Get the role from the URL parameter
+    role = request.args.get('role', 'student')
+    is_admin_login = role == 'admin'
     
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         remember = 'remember' in request.form
+        user_role = request.form.get('role', 'student')  # Get role from form
         
         # Find user by email
         user = User.query.filter_by(email=email).first()
         
         if user and user.check_password(password):
+            # Check if user role matches requested role
+            is_admin = user.is_admin()
+            
+            if (user_role == 'admin' and not is_admin):
+                flash('You do not have admin privileges', 'danger')
+                return render_template('auth/login.html', is_admin_login=is_admin_login)
+            
             # Update last login
             user.update_last_login()
             
@@ -74,6 +88,13 @@ def login():
                         # Login user
                         login_user(user, remember=remember)
                         
+                        # Check if user role matches requested role
+                        is_admin = user.is_admin()
+                        
+                        if (user_role == 'admin' and not is_admin):
+                            flash('You do not have admin privileges', 'danger')
+                            return render_template('auth/login.html', is_admin_login=is_admin_login)
+                        
                         # Redirect to next page or dashboard
                         next_page = request.args.get('next')
                         if next_page:
@@ -88,7 +109,7 @@ def login():
         
         flash('Invalid email or password', 'danger')
     
-    return render_template('auth/login.html')
+    return render_template('auth/login.html', is_admin_login=is_admin_login)
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():

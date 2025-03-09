@@ -1,58 +1,118 @@
 {% extends "layout.html" %}
 
-{% block title %}OCR A-Level Computer Science AI Tutor{% endblock %}
+{% block title %}LOKI - AI Tutor for OCR A-Level Computer Science{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<section class="hero bg-primary text-white py-5">
+<!-- Hero Section with Gradient Background -->
+<section class="hero text-white py-5" style="background: linear-gradient(135deg, #4568dc, #b06ab3);">
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-6">
-                <h1 class="display-4 font-weight-bold mb-4">Master A-Level Computer Science with AI</h1>
-                <p class="lead mb-4">Our AI-powered tutor helps you understand complex computer science concepts, practice your skills, and prepare for your OCR A-Level exams.</p>
-                {% if current_user %}
-                <a href="{{ url_for('student.dashboard') }}" class="btn btn-light btn-lg">Start Learning</a>
-                {% else %}
-                <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg mr-3">Get Started</a>
-                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">Login</a>
-                {% endif %}
+                <h1 class="display-4 font-weight-bold mb-4">LOKI: Your AI Tutor for A-Level Computer Science</h1>
+                <p class="lead mb-4">Transform your learning experience with our AI-powered educational assistant designed specifically for OCR A-Level Computer Science students.</p>
+                <div class="d-flex flex-wrap">
+                    {% if current_user %}
+                    <a href="{{ url_for('student.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">Start Learning</a>
+                    {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4 py-2 mr-3 mb-2">Sign Up</a>
+                    <div class="dropdown mb-2">
+                        <button class="btn btn-outline-light btn-lg px-4 py-2 dropdown-toggle" type="button" id="loginDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Sign In
+                        </button>
+                        <div class="dropdown-menu" aria-labelledby="loginDropdown">
+                            <a class="dropdown-item" href="{{ url_for('auth.login') }}">
+                                <i class="fas fa-user-graduate mr-2"></i> Student Login
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('auth.login', role='admin') }}">
+                                <i class="fas fa-user-shield mr-2"></i> Admin Login
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             <div class="col-lg-6 d-none d-lg-block">
-                <img src="https://via.placeholder.com/600x400?text=AI+Tutor" alt="AI Tutor" class="img-fluid rounded shadow">
+                <img src="https://images.unsplash.com/photo-1523800503107-5bc3ba2a6f81?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="AI Education" class="img-fluid rounded shadow-lg" style="border: 5px solid rgba(255, 255, 255, 0.2);">
             </div>
         </div>
     </div>
 </section>
 
-<!-- Features Section -->
+<!-- AI Capabilities Section with Cards -->
 <section class="py-5">
     <div class="container">
-        <h2 class="text-center mb-5">Why Choose Our AI Tutor?</h2>
+        <h2 class="text-center mb-2 font-weight-bold">Revolutionize Your Learning Experience</h2>
+        <p class="text-center mb-5 text-muted">LOKI combines advanced AI technology with educational expertise to provide a comprehensive learning solution</p>
+        
         <div class="row">
             <div class="col-md-4 mb-4">
-                <div class="card h-100 text-center">
-                    <div class="card-body">
-                        <i class="fas fa-robot text-primary mb-3" style="font-size: 3rem;"></i>
-                        <h3>AI-Powered Learning</h3>
-                        <p>Our AI tutor adapts to your learning style and pace, providing personalized explanations and feedback.</p>
+                <div class="card h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <div class="icon-circle mb-3 mx-auto" style="background-color: rgba(69, 104, 220, 0.1);">
+                            <i class="fas fa-file-alt text-primary"></i>
+                        </div>
+                        <h3 class="h4 card-title">Custom Practice Papers</h3>
+                        <p class="card-text">Generate tailored mock exam papers based on your strengths and weaknesses to perfect your exam technique.</p>
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-4 mb-4">
-                <div class="card h-100 text-center">
-                    <div class="card-body">
-                        <i class="fas fa-book text-primary mb-3" style="font-size: 3rem;"></i>
-                        <h3>OCR Specification Aligned</h3>
-                        <p>All content is aligned with the OCR A-Level Computer Science specification, ensuring you're learning exactly what you need.</p>
+                <div class="card h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <div class="icon-circle mb-3 mx-auto" style="background-color: rgba(176, 106, 179, 0.1);">
+                            <i class="fas fa-check-double text-primary"></i>
+                        </div>
+                        <h3 class="h4 card-title">Smart Paper Marking</h3>
+                        <p class="card-text">Get detailed feedback on your practice answers with personalized improvement suggestions and example solutions.</p>
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-4 mb-4">
-                <div class="card h-100 text-center">
-                    <div class="card-body">
-                        <i class="fas fa-chart-line text-primary mb-3" style="font-size: 3rem;"></i>
-                        <h3>Track Your Progress</h3>
-                        <p>Monitor your understanding of each topic and identify areas that need more attention.</p>
+                <div class="card h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <div class="icon-circle mb-3 mx-auto" style="background-color: rgba(69, 104, 220, 0.1);">
+                            <i class="fas fa-tasks text-primary"></i>
+                        </div>
+                        <h3 class="h4 card-title">Structured Lesson Plans</h3>
+                        <p class="card-text">Follow AI-designed learning pathways that adapt to your progress and ensure comprehensive syllabus coverage.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <div class="icon-circle mb-3 mx-auto" style="background-color: rgba(176, 106, 179, 0.1);">
+                            <i class="fas fa-chart-line text-primary"></i>
+                        </div>
+                        <h3 class="h4 card-title">Progress Monitoring</h3>
+                        <p class="card-text">Track your understanding across all syllabus topics with detailed analytics and personalized insights.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <div class="icon-circle mb-3 mx-auto" style="background-color: rgba(69, 104, 220, 0.1);">
+                            <i class="fas fa-lightbulb text-primary"></i>
+                        </div>
+                        <h3 class="h4 card-title">Topic Explanations</h3>
+                        <p class="card-text">Master complex concepts with clear, interactive explanations tailored to your learning style.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm hover-card">
+                    <div class="card-body text-center">
+                        <div class="icon-circle mb-3 mx-auto" style="background-color: rgba(176, 106, 179, 0.1);">
+                            <i class="fas fa-calendar-alt text-primary"></i>
+                        </div>
+                        <h3 class="h4 card-title">Custom Revision Plans</h3>
+                        <p class="card-text">Get personalized revision schedules that optimize your study time based on your progress and exam dates.</p>
                     </div>
                 </div>
             </div>
@@ -60,52 +120,65 @@
     </div>
 </section>
 
-<!-- How It Works Section -->
-<section class="py-5 bg-light">
+<!-- How It Works Section with Modern Design -->
+<section class="py-5" style="background-color: #f8f9fa;">
     <div class="container">
-        <h2 class="text-center mb-5">How It Works</h2>
-        <div class="row">
-            <div class="col-md-3 mb-4">
-                <div class="card h-100 border-0 bg-transparent">
-                    <div class="card-body text-center">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
-                            <span class="h3 mb-0">1</span>
+        <h2 class="text-center mb-2 font-weight-bold">Simple & Effective Learning Journey</h2>
+        <p class="text-center mb-5 text-muted">Our streamlined process helps you achieve your academic goals efficiently</p>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="timeline">
+                    <div class="row timeline-item">
+                        <div class="col-md-6 order-md-2">
+                            <div class="timeline-content left shadow-sm">
+                                <div class="timeline-number">1</div>
+                                <h3 class="h4">Personalize Your Learning Path</h3>
+                                <p>Based on your goals and current understanding, LOKI creates a customized learning journey aligned with the OCR specification.</p>
+                            </div>
                         </div>
-                        <h4>Choose a Topic</h4>
-                        <p>Select from any topic in the OCR A-Level Computer Science curriculum.</p>
+                        <div class="col-md-6 order-md-1 d-flex align-items-center justify-content-center">
+                            <img src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80" alt="Personalized Learning" class="timeline-image rounded shadow">
+                        </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-4">
-                <div class="card h-100 border-0 bg-transparent">
-                    <div class="card-body text-center">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
-                            <span class="h3 mb-0">2</span>
+                    
+                    <div class="row timeline-item">
+                        <div class="col-md-6">
+                            <div class="timeline-content right shadow-sm">
+                                <div class="timeline-number">2</div>
+                                <h3 class="h4">Practice with Custom Materials</h3>
+                                <p>Generate tailored practice papers and exercises that target your specific areas for improvement.</p>
+                            </div>
                         </div>
-                        <h4>Select Learning Mode</h4>
-                        <p>Choose from explore, practice, code, review, or test modes.</p>
+                        <div class="col-md-6 d-flex align-items-center justify-content-center">
+                            <img src="https://images.unsplash.com/photo-1543286386-713bdd548da4?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80" alt="Practice Materials" class="timeline-image rounded shadow">
+                        </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-4">
-                <div class="card h-100 border-0 bg-transparent">
-                    <div class="card-body text-center">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
-                            <span class="h3 mb-0">3</span>
+                    
+                    <div class="row timeline-item">
+                        <div class="col-md-6 order-md-2">
+                            <div class="timeline-content left shadow-sm">
+                                <div class="timeline-number">3</div>
+                                <h3 class="h4">Receive Intelligent Feedback</h3>
+                                <p>Get detailed, constructive feedback on your work with specific guidance on how to improve your understanding and exam technique.</p>
+                            </div>
                         </div>
-                        <h4>Learn with AI</h4>
-                        <p>Interact with our AI tutor to understand concepts and practice skills.</p>
+                        <div class="col-md-6 order-md-1 d-flex align-items-center justify-content-center">
+                            <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80" alt="Intelligent Feedback" class="timeline-image rounded shadow">
+                        </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-4">
-                <div class="card h-100 border-0 bg-transparent">
-                    <div class="card-body text-center">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
-                            <span class="h3 mb-0">4</span>
+                    
+                    <div class="row timeline-item">
+                        <div class="col-md-6">
+                            <div class="timeline-content right shadow-sm">
+                                <div class="timeline-number">4</div>
+                                <h3 class="h4">Track Your Progress</h3>
+                                <p>Monitor your improvement with comprehensive analytics and adjusting your learning strategy as you progress.</p>
+                            </div>
                         </div>
-                        <h4>Track Progress</h4>
-                        <p>Monitor your understanding and identify areas for improvement.</p>
+                        <div class="col-md-6 d-flex align-items-center justify-content-center">
+                            <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80" alt="Progress Tracking" class="timeline-image rounded shadow">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -113,75 +186,85 @@
     </div>
 </section>
 
-<!-- Testimonials Section -->
+<!-- Testimonials Section with Modern Cards -->
 <section class="py-5">
     <div class="container">
-        <h2 class="text-center mb-5">What Our Students Say</h2>
+        <h2 class="text-center mb-2 font-weight-bold">Success Stories</h2>
+        <p class="text-center mb-5 text-muted">Hear from students who have transformed their learning with LOKI</p>
+        
         <div class="row">
             <div class="col-md-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 testimonial-card shadow-sm">
                     <div class="card-body">
-                        <div class="mb-3">
+                        <div class="testimonial-rating mb-3">
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                         </div>
-                        <p class="card-text">"The AI tutor helped me understand complex algorithms that I was struggling with. The explanations were clear and the practice questions really helped me prepare for my exams."</p>
+                        <p class="card-text testimonial-text">"The structured revision plans and practice papers helped me go from a predicted C to an A in my final exams. The AI tutor explained complex algorithms in ways that finally made sense to me."</p>
                     </div>
                     <div class="card-footer bg-white border-0">
                         <div class="d-flex align-items-center">
-                            <img src="https://ui-avatars.com/api/?name=Sarah+J&background=random&size=48" alt="Sarah J." class="rounded-circle mr-3">
+                            <div class="testimonial-avatar mr-3">
+                                <img src="https://ui-avatars.com/api/?name=Sarah+J&background=4568dc&color=fff&size=48" alt="Sarah J." class="rounded-circle">
+                            </div>
                             <div>
-                                <h5 class="mb-0">Sarah J.</h5>
-                                <small class="text-muted">A-Level Student</small>
+                                <h5 class="mb-0 font-weight-bold">Sarah J.</h5>
+                                <small class="text-muted">A* Student, Oxford University Offer</small>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 testimonial-card shadow-sm">
                     <div class="card-body">
-                        <div class="mb-3">
+                        <div class="testimonial-rating mb-3">
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                         </div>
-                        <p class="card-text">"I love how I can ask the AI tutor questions at any time. It's like having a personal tutor available 24/7. The progress tracking feature also helps me focus on areas where I need improvement."</p>
+                        <p class="card-text testimonial-text">"As someone who struggles with test anxiety, having personalized mock papers that gradually increased in difficulty helped me build confidence. The detailed feedback on my answers was like having a dedicated teacher."</p>
                     </div>
                     <div class="card-footer bg-white border-0">
                         <div class="d-flex align-items-center">
-                            <img src="https://ui-avatars.com/api/?name=Michael+T&background=random&size=48" alt="Michael T." class="rounded-circle mr-3">
+                            <div class="testimonial-avatar mr-3">
+                                <img src="https://ui-avatars.com/api/?name=Michael+T&background=b06ab3&color=fff&size=48" alt="Michael T." class="rounded-circle">
+                            </div>
                             <div>
-                                <h5 class="mb-0">Michael T.</h5>
-                                <small class="text-muted">A-Level Student</small>
+                                <h5 class="mb-0 font-weight-bold">Michael T.</h5>
+                                <small class="text-muted">A-Level Student, Grade A</small>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 testimonial-card shadow-sm">
                     <div class="card-body">
-                        <div class="mb-3">
+                        <div class="testimonial-rating mb-3">
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star text-warning"></i>
                             <i class="fas fa-star-half-alt text-warning"></i>
                         </div>
-                        <p class="card-text">"As a teacher, I recommend this AI tutor to all my students. It provides excellent explanations and practice opportunities that complement classroom learning. The alignment with the OCR specification is spot on."</p>
+                        <p class="card-text testimonial-text">"As a computer science teacher, I've seen remarkable improvement in my students who use LOKI. The alignment with the OCR specification is perfect, and it allows me to focus on more interactive classroom activities."</p>
                     </div>
                     <div class="card-footer bg-white border-0">
                         <div class="d-flex align-items-center">
-                            <img src="https://ui-avatars.com/api/?name=David+P&background=random&size=48" alt="David P." class="rounded-circle mr-3">
+                            <div class="testimonial-avatar mr-3">
+                                <img src="https://ui-avatars.com/api/?name=David+P&background=4568dc&color=fff&size=48" alt="David P." class="rounded-circle">
+                            </div>
                             <div>
-                                <h5 class="mb-0">David P.</h5>
-                                <small class="text-muted">Computer Science Teacher</small>
+                                <h5 class="mb-0 font-weight-bold">David P.</h5>
+                                <small class="text-muted">Head of Computer Science, Harrow School</small>
                             </div>
                         </div>
                     </div>

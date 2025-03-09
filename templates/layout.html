@@ -16,6 +16,14 @@
     
     <!-- Additional CSS -->
     {% block styles %}{% endblock %}
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+    
+    <!-- Firebase Initialization -->
+    <script src="{{ url_for('static', filename='js/firebase-init.js') }}"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -23,7 +31,7 @@
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <i class="fas fa-robot mr-2"></i>
-                OCR CS AI Tutor
+                LOKI AI Tutor
             </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -104,8 +112,8 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-4">
-                    <h5>OCR CS AI Tutor</h5>
-                    <p>An AI-powered tutor for OCR A-Level Computer Science students.</p>
+                    <h5>LOKI AI Tutor</h5>
+                    <p>Learning Oriented Knowledge Interface: An AI-powered tutor for OCR A-Level Computer Science students.</p>
                 </div>
                 <div class="col-md-4">
                     <h5>Quick Links</h5>
@@ -131,7 +139,7 @@
             <hr class="bg-light">
             <div class="row">
                 <div class="col-md-6">
-                    <p class="mb-0">&copy; 2025 OCR CS AI Tutor. All rights reserved.</p>
+                    <p class="mb-0">&copy; 2025 LOKI AI Tutor. All rights reserved.</p>
                 </div>
                 <div class="col-md-6 text-md-right">
                     <a href="#" class="text-white mr-3">Privacy Policy</a>

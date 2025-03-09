@@ -352,3 +352,149 @@ footer {
 .shadow-lg {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
 }
+
+/* Landing Page Enhancements */
+.hero {
+    padding: 4rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Icon Circles for Features */
+.icon-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-circle i {
+    font-size: 2rem;
+}
+
+/* Card Hover Effects */
+.hover-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Timeline Component */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline-item {
+    margin-bottom: 50px;
+}
+
+.timeline-content {
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    position: relative;
+}
+
+.timeline-content.left:after {
+    content: '';
+    position: absolute;
+    top: 30px;
+    right: -10px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    transform: rotate(45deg);
+}
+
+.timeline-content.right:after {
+    content: '';
+    position: absolute;
+    top: 30px;
+    left: -10px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    transform: rotate(45deg);
+}
+
+.timeline-number {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #4568dc, #b06ab3);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.timeline-image {
+    max-width: 100%;
+    height: auto;
+    max-height: 250px;
+    object-fit: cover;
+}
+
+/* Testimonial Cards */
+.testimonial-card {
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+.testimonial-card:hover {
+    transform: translateY(-5px);
+}
+
+.testimonial-rating {
+    font-size: 1.2rem;
+}
+
+.testimonial-text {
+    font-style: italic;
+    line-height: 1.6;
+}
+
+.testimonial-avatar img {
+    width: 50px;
+    height: 50px;
+    border: 3px solid white;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Login Options Dropdown */
+.dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border: none;
+    padding: 10px;
+}
+
+.dropdown-item {
+    border-radius: 4px;
+    padding: 8px 15px;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+    .timeline-content.left:after,
+    .timeline-content.right:after {
+        display: none;
+    }
+    
+    .timeline-item {
+        margin-bottom: 30px;
+    }
+}
