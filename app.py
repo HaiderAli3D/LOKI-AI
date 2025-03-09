@@ -2,7 +2,10 @@
 OCR A-Level Computer Science AI Tutor
 """
 import os
+import sys
 import logging
+import traceback
+import json
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
@@ -43,39 +46,142 @@ logging.basicConfig(
     ]
 )
 
+# Add debug handler for startup issues
+handler = logging.FileHandler('/tmp/app_debug.log')
+handler.setLevel(logging.DEBUG)
+app.logger.addHandler(handler)
+app.logger.setLevel(logging.DEBUG)
+
 # Configure ProxyFix for proper IP handling behind proxies
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
-# Initialize database
-from config.database_config import database
-database.init_app(app)
+# Startup diagnostics
+app.logger.info("=== Starting Application ===")
+app.logger.info(f"Python version: {sys.version}")
+app.logger.info(f"Working directory: {os.getcwd()}")
+app.logger.info(f"Environment variables: DATABASE_URI={os.environ.get('DATABASE_URI', 'Not set')}")
 
-# Initialize Firebase
-from config.firebase_config import firebase
-firebase.init_app(app)
+# Debug routes - these will help us diagnose issues
+@app.route('/debug')
+def debug_info():
+    """Debug endpoint for AWS deployment troubleshooting"""
+    debug_data = {
+        'environment': dict(os.environ),
+        'config': {k: str(v) for k, v in app.config.items() if not k.startswith('_')},
+        'python_version': sys.version,
+        'working_directory': os.getcwd(),
+        'directory_contents': os.listdir(),
+        'user': os.environ.get('USER'),
+    }
+    
+    # Check specific files
+    paths_to_check = [
+        '/var/app/current/credentials/firebase-service-account.json',
+        '/var/log/eb-engine.log',
+        '/var/log/eb-activity.log',
+        '/var/log/eb-hooks.log',
+        '/tmp/app_debug.log'
+    ]
+    
+    file_checks = {}
+    for path in paths_to_check:
+        file_checks[path] = {
+            'exists': os.path.exists(path),
+            'size': os.path.getsize(path) if os.path.exists(path) else None,
+            'is_file': os.path.isfile(path) if os.path.exists(path) else None
+        }
+    
+    debug_data['file_checks'] = file_checks
+    
+    # Try to get database connection info
+    try:
+        from sqlalchemy import create_engine
+        from sqlalchemy.exc import SQLAlchemyError
+        
+        db_uri = os.environ.get('DATABASE_URI', 'sqlite:///app.db')
+        debug_data['database'] = {
+            'uri': db_uri.replace(':'+'//'+':'+'@', '://user:pass@') if '//' in db_uri and '@' in db_uri else db_uri,
+            'connection_test': 'Not tested'
+        }
+        
+        try:
+            engine = create_engine(db_uri)
+            conn = engine.connect()
+            conn.close()
+            debug_data['database']['connection_test'] = 'Success'
+        except SQLAlchemyError as e:
+            debug_data['database']['connection_test'] = f'Failed: {str(e)}'
+    except Exception as e:
+        debug_data['database_error'] = str(e)
+    
+    return jsonify(debug_data)
 
-# Initialize Stripe
-from config.stripe_config import stripe_config
-stripe_config.init_app(app)
+@app.route('/deploy-test')
+def deploy_test():
+    """Minimal test route to verify deployment success"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Deployment test successful',
+        'timestamp': datetime.utcnow().isoformat(),
+        'environment': os.environ.get('FLASK_ENV', 'production')
+    })
 
-# Initialize AWS
-from config.aws_config import aws_config
-aws_config.init_app(app)
+# Initialize components with error handling
+components = [
+    ('database', 'config.database_config', 'database'),
+    ('firebase', 'config.firebase_config', 'firebase'),
+    ('stripe', 'config.stripe_config', 'stripe_config'),
+    ('aws', 'config.aws_config', 'aws_config')
+]
 
-# Initialize login manager
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'auth.login'
-login_manager.login_message_category = 'info'
+initialized_components = {}
 
-@login_manager.user_loader
-def load_user(user_id):
-    from models.user import User
-    return User.query.get(int(user_id))
+for name, module_path, attr_name in components:
+    try:
+        app.logger.info(f"Initializing {name}...")
+        module = __import__(module_path, fromlist=[attr_name])
+        component = getattr(module, attr_name)
+        component.init_app(app)
+        initialized_components[name] = True
+        app.logger.info(f"{name} initialized successfully")
+    except Exception as e:
+        app.logger.error(f"Error initializing {name}: {e}")
+        app.logger.error(traceback.format_exc())
+        initialized_components[name] = False
 
-# Register blueprints
-from routes import register_blueprints
-register_blueprints(app)
+# Initialize login manager only if database is initialized
+if initialized_components.get('database', False):
+    try:
+        app.logger.info("Initializing login manager...")
+        login_manager = LoginManager()
+        login_manager.init_app(app)
+        login_manager.login_view = 'auth.login'
+        login_manager.login_message_category = 'info'
+
+        @login_manager.user_loader
+        def load_user(user_id):
+            try:
+                from models.user import User
+                return User.query.get(int(user_id))
+            except Exception as e:
+                app.logger.error(f"Error loading user: {e}")
+                return None
+                
+        app.logger.info("Login manager initialized successfully")
+    except Exception as e:
+        app.logger.error(f"Error initializing login manager: {e}")
+        app.logger.error(traceback.format_exc())
+
+# Register blueprints only if core dependencies are available
+if initialized_components.get('database', False):
+    try:
+        app.logger.info("Registering blueprints...")
+        from routes import register_blueprints
+        register_blueprints(app)
+        app.logger.info("Blueprints registered successfully")
+    except Exception as e:
+        app.logger.error(f"Error registering blueprints: {e}")
+        app.logger.error(traceback.format_exc())
 
 # Error handlers
 @app.errorhandler(404)
@@ -94,11 +200,14 @@ def inject_now():
 
 @app.context_processor
 def inject_user_subscription():
-    if current_user.is_authenticated:
-        return {
-            'has_subscription': current_user.has_active_subscription(),
-            'subscription': current_user.subscription
-        }
+    if current_user.is_authenticated and hasattr(current_user, 'has_active_subscription'):
+        try:
+            return {
+                'has_subscription': current_user.has_active_subscription(),
+                'subscription': current_user.subscription
+            }
+        except Exception as e:
+            app.logger.error(f"Error in subscription context processor: {e}")
     return {'has_subscription': False, 'subscription': None}
 
 # Before request handlers
@@ -109,6 +218,19 @@ def check_maintenance_mode():
         return render_template('errors/maintenance.html'), 503
 
 # Routes
+@app.route('/')
+def index():
+    """Home page"""
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        app.logger.error(f"Error rendering index page: {e}")
+        return jsonify({
+            'error': 'Error rendering index page',
+            'message': str(e),
+            'initialized_components': initialized_components
+        }), 500
+
 @app.route('/maintenance')
 def maintenance():
     return render_template('errors/maintenance.html')
@@ -116,18 +238,31 @@ def maintenance():
 @app.route('/health')
 def health_check():
     """Health check endpoint for AWS"""
-    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
+    return jsonify({
+        'status': 'ok', 
+        'timestamp': datetime.utcnow().isoformat(),
+        'initialized_components': initialized_components
+    })
 
 # Initialize app
 with app.app_context():
-    # Create database tables if they don't exist
-    database.create_all()
-    
     # Create required directories
     os.makedirs('logs', exist_ok=True)
     os.makedirs('migrations', exist_ok=True)
     os.makedirs('temp_uploads', exist_ok=True)
     os.makedirs('resources', exist_ok=True)
+    
+    # Create database tables if database was initialized successfully
+    if initialized_components.get('database', False):
+        try:
+            app.logger.info("Creating database tables...")
+            database.create_all()
+            app.logger.info("Database tables created successfully")
+        except Exception as e:
+            app.logger.error(f"Error creating database tables: {e}")
+            app.logger.error(traceback.format_exc())
+
+app.logger.info("=== Application Startup Complete ===")
 
 # Run app
 if __name__ == '__main__':
