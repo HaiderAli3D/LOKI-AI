@@ -37,29 +37,60 @@ class FirebaseConfig:
         """Initialize Firebase with Flask app"""
         self.app = app
         
-        # Initialize Firebase Admin SDK
-        if not firebase_admin._apps:
-            if self.service_account_path:
-                cred = credentials.Certificate(self.service_account_path)
-            else:
-                # Use application default credentials if service account not provided
-                cred = credentials.ApplicationDefault()
+        try:
+            # Initialize Firebase Admin SDK
+            if not firebase_admin._apps:
+                app.logger.info(f"Initializing Firebase Admin SDK with service account: {self.service_account_path}")
                 
-            self.firebase_admin_app = firebase_admin.initialize_app(cred, {
-                'projectId': self.config['projectId'],
-                'storageBucket': self.config['storageBucket']
-            })
-        else:
-            self.firebase_admin_app = firebase_admin.get_app()
-        
-        # Initialize Pyrebase
-        self.pyrebase_app = pyrebase.initialize_app(self.config)
-        self.auth = self.pyrebase_app.auth()
-        self.db = self.pyrebase_app.database()
-        self.storage = self.pyrebase_app.storage()
+                try:
+                    if self.service_account_path and os.path.exists(self.service_account_path):
+                        app.logger.info(f"Using service account file from path: {self.service_account_path}")
+                        cred = credentials.Certificate(self.service_account_path)
+                    else:
+                        app.logger.warning(f"Service account file not found at {self.service_account_path}, checking fallback locations")
+                        
+                        # Try fallback locations in Elastic Beanstalk environment
+                        eb_fallback_path = "/var/app/current/credentials/firebase-service-account.json"
+                        if os.path.exists(eb_fallback_path):
+                            app.logger.info(f"Using service account from EB fallback location: {eb_fallback_path}")
+                            cred = credentials.Certificate(eb_fallback_path)
+                        else:
+                            app.logger.warning("No service account found, using application default credentials")
+                            cred = credentials.ApplicationDefault()
+                    
+                    app.logger.info("Initializing Firebase Admin app")
+                    self.firebase_admin_app = firebase_admin.initialize_app(cred, {
+                        'projectId': self.config['projectId'],
+                        'storageBucket': self.config['storageBucket']
+                    })
+                    app.logger.info("Firebase Admin SDK initialized successfully")
+                except Exception as e:
+                    app.logger.error(f"Error initializing Firebase Admin SDK: {e}")
+                    # Continue without firebase admin in case of error
+                    self.firebase_admin_app = None
+            else:
+                app.logger.info("Firebase Admin app already initialized, getting existing app")
+                self.firebase_admin_app = firebase_admin.get_app()
+            
+            # Initialize Pyrebase
+            app.logger.info("Initializing Pyrebase")
+            self.pyrebase_app = pyrebase.initialize_app(self.config)
+            self.auth = self.pyrebase_app.auth()
+            self.db = self.pyrebase_app.database()
+            self.storage = self.pyrebase_app.storage()
+            app.logger.info("Pyrebase initialized successfully")
+            
+        except Exception as e:
+            app.logger.error(f"Error in Firebase initialization: {e}")
+            # Set to None to handle gracefully in the app
+            self.pyrebase_app = None
+            self.auth = None
+            self.db = None
+            self.storage = None
         
         # Add Firebase to Flask app context
         app.extensions['firebase'] = self
+        app.logger.info("Firebase configuration added to Flask app context")
         
         return self
     
