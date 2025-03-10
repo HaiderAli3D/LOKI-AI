@@ -182,6 +182,29 @@ const preWrittenResponses = {
     }
 };
 
+// Function to create initial prompt with context information
+function create_initial_prompt_with_context(topic_code, topic_title, mode, timeString) {
+    // Base message based on the current mode
+    let basePrompt = "";
+    
+    if (mode === "explore") {
+        basePrompt = `I'd like to learn about ${topic_title} from the OCR A-Level Computer Science curriculum. Please provide a comprehensive explanation.`;
+    } else if (mode === "practice") {
+        basePrompt = `I'd like to practice ${topic_title} from the OCR A-Level Computer Science curriculum. Please provide practice questions.`;
+    } else if (mode === "code") {
+        basePrompt = `I'd like to learn about ${topic_title} through practical coding examples. Please provide code examples and explanations.`;
+    } else if (mode === "review") {
+        basePrompt = `I'd like to review ${topic_title}. Please create a comprehensive revision summary.`;
+    } else if (mode === "test") {
+        basePrompt = `I'd like to test my knowledge of ${topic_title}. Please create a mini-assessment with exam-style questions.`;
+    } else {
+        basePrompt = `I'd like to learn about ${topic_title} from the OCR A-Level Computer Science curriculum. Please help me understand this topic in detail.`;
+    }
+    
+    // Append context tag
+    return `${basePrompt}\n\n[CONTEXT: Topic ${topic_code} ${topic_title} | ${timeString}]`;
+}
+
 function sendInitialPrompt() {
     // Clear chat
     chatMessages.innerHTML = '';
@@ -213,10 +236,24 @@ function sendInitialPrompt() {
             response = preWrittenResponses["default"][currentMode] || preWrittenResponses["default"]["explore"];
         }
         
-        // Add response
+        // Get current time
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        
+        // Create context tag for the initial message
+        const contextTag = `[CONTEXT: Topic ${topicCode} ${topicTitle} | ${timeString}]`;
+        const initialPrompt = create_initial_prompt_with_context(topicCode, topicTitle, currentMode, timeString);
+        
+        // Add response to chat
         addMessage('assistant', response);
         
-        // Update conversation history
+        // First add the system's initial prompt with context to conversation history
+        conversationHistory.push({
+            role: "user",
+            content: initialPrompt
+        });
+        
+        // Then add the assistant's response
         conversationHistory.push({
             role: "assistant",
             content: response
@@ -238,13 +275,21 @@ function sendMessage() {
     const message = userInput.value.trim();
     if (!message) return;
     
-    // Add user message to chat
+    // Get current time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    
+    // Append context info to message
+    const contextTag = `[CONTEXT: Topic ${topicCode} ${topicTitle} | ${timeString}]`;
+    const messageWithContext = `${message}\n\n${contextTag}`;
+    
+    // Add user message to chat (without showing the context tag to the user)
     addMessage('user', message);
     
-    // Update conversation history
+    // Update conversation history with context
     conversationHistory.push({
         role: "user",
-        content: message
+        content: messageWithContext
     });
     
     // Clear input
@@ -260,7 +305,7 @@ function sendMessage() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            question: message,
+            question: messageWithContext,
             topic_code: topicCode,
             mode: currentMode
         })

@@ -19,13 +19,13 @@
     --border-color: #e9ecef;
     --text-color: #3a3a3a;
     --text-muted: #757575;
-    --gradient-primary: linear-gradient(135deg, #7465F0 0%, #9a8ff5 100%);
+    --gradient-primary: linear-gradient(135deg, #3c2fb8 0%, #9e98d2 100%);
     --box-shadow: 0 10px 20px rgba(116, 101, 240, 0.08);
     --box-shadow-hover: 0 15px 25px rgba(116, 101, 240, 0.15);
     --transition: all 0.3s ease;
 }
 
-* {
+* {     
     box-sizing: border-box;
     margin: 0;
     padding: 0;

@@ -103,13 +103,21 @@ function sendGlobalChatMessage() {
     const message = globalChatInput.value.trim();
     if (!message) return;
     
-    // Add user message to chat
+    // Get current time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    
+    // Append context info to message
+    const contextTag = `[CONTEXT: General Learning | ${timeString}]`;
+    const messageWithContext = `${message}\n\n${contextTag}`;
+    
+    // Add user message to chat (without showing the context tag to the user)
     addGlobalChatMessage('user', message);
     
-    // Update conversation history
+    // Update conversation history with context
     globalChatHistory.push({
         role: "user",
-        content: message
+        content: messageWithContext
     });
     
     // Clear input
@@ -125,7 +133,7 @@ function sendGlobalChatMessage() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            question: message
+            question: messageWithContext
         })
     })
     .then(response => response.json())
