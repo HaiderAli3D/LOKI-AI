@@ -3,54 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOKI - OCR A-Level Computer Science AI Tutor</title>
+    <title>APOLLO - OCR A-Level Computer Science AI Tutor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Additional styles specific to landing page */
+        :root {
+            --gradient-primary: linear-gradient(135deg, #4a7feb 0%, #7e6cf7 100%);
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hero-section {
+            padding: 4rem 1rem;
+            text-align: center;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: 15px;
+            margin-bottom: 3rem;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .hero-title {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.4rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        
+        .feature-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+        
+        .feature-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--box-shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            background: #f0f4ff;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .feature-title {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            color: var(--dark-color);
+        }
+        
+        .feature-description {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+        
+        .auth-section {
+            background-color: white;
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: var(--box-shadow);
+            margin-top: 3rem;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+        
+        .auth-title {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            color: var(--dark-color);
+        }
+        
+        .auth-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            justify-content: center;
+        }
+        
+        .auth-card {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            min-width: 250px;
+            flex: 1;
+            transition: transform 0.3s ease;
+        }
+        
+        .auth-card:hover {
+            transform: scale(1.05);
+        }
+        
+        .auth-card h3 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+            font-size: 1.3rem;
+        }
+        
+        .auth-card p {
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+        
+        .btn-lg {
+            padding: 0.8rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .testimonial-section {
+            margin-top: 4rem;
+            text-align: center;
+        }
+        
+        .testimonial-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--box-shadow);
+        }
+
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.2rem;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .auth-options {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
     <header>
-        <h1>LOKI</h1>
-        <p>Learning Oriented Knowledge Interface for OCR A-Level Computer Science</p>
+        <h1>APOLLO</h1>
+        <p>Your full time professional private tutor</p>
+        <div class="header-buttons">
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
+            <a href="{{ url_for('student_login') }}" class="btn btn-primary">Student Login</a>
+            <a href="{{ url_for('login') }}" class="btn btn-secondary">Admin Login</a>
+        </div>
     </header>
     
-    <div class="page-with-chat">
-        <div class="main-content">
-            <main class="landing-page">
-                <div class="role-selection">
-                    <div class="role-card">
-                        <h2>Student</h2>
-                        <p>Access interactive learning resources, practice with exam-style questions, and get personalized tutoring.</p>
-                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">Enter as Student</a>
+    <div class="container">
+        <main>
+            <!-- Hero Section -->
+            <section class="hero-section">
+                <h1 class="hero-title">Master A-Level Computer Science with AI</h1>
+                <p class="hero-subtitle">APOLLO is your personal AI tutor that adapts to your learning style, creates practice papers, and guides you through the OCR A-Level Computer Science curriculum.</p>
+                <div class="cta-buttons">
+                    <a href="{{ url_for('register') }}" class="btn btn-lg btn-primary">Get Started</a>
+                    <a href="#features" class="btn btn-lg btn-secondary">Learn More</a>
+                </div>
+            </section>
+            
+            <!-- Features Section -->
+            <section id="features" class="feature-section">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <h3 class="feature-title">Guided Learning Plans</h3>
+                    <p class="feature-description">Structured lesson plans tailored to your learning pace and style, covering all aspects of the OCR specification.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <h3 class="feature-title">Practice Papers</h3>
+                    <p class="feature-description">AI-generated practice questions and mock papers that match the style and difficulty of actual OCR exams.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="feature-title">Progress Tracking</h3>
+                    <p class="feature-description">Detailed analytics on your performance, highlighting strengths and areas for improvement with personalized recommendations.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h3 class="feature-title">AI Conversations</h3>
+                    <p class="feature-description">Ask questions, explore complex topics, and receive instant, accurate explanations from your AI tutor.</p>
+                </div>
+            </section>
+            
+            <!-- Authentication Section -->
+            <section class="auth-section">
+                <h2 class="auth-title">Ready to elevate your Computer Science skills?</h2>
+                <div class="auth-options">
+                    <div class="auth-card">
+                        <h3>New User?</h3>
+                        <p>Create an account to start your personalized learning journey. Track your progress across topics and access all features.</p>
+                        <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
                     </div>
                     
-                    <div class="role-card">
-                        <h2>Admin</h2>
-                        <p>Manage learning resources, upload new materials, and monitor student progress.</p>
-                        <a href="{{ url_for('login') }}" class="btn btn-secondary">Enter as Admin</a>
+                    <div class="auth-card">
+                        <h3>Returning Student</h3>
+                        <p>Continue your learning progress and pick up right where you left off.</p>
+                        <a href="{{ url_for('student_login') }}" class="btn btn-primary">Student Login</a>
+                    </div>
+                    
+                    <div class="auth-card">
+                        <h3>Administrator</h3>
+                        <p>Access administrative controls to manage resources and monitor student progress.</p>
+                        <a href="{{ url_for('login') }}" class="btn btn-secondary">Admin Login</a>
                     </div>
                 </div>
-            </main>
+            </section>
             
-            <footer>
-                <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
-            </footer>
-        </div>
+            <!-- Testimonial Section -->
+            <section class="testimonial-section">
+                <div class="testimonial-container">
+                    <h3>What Students Are Saying</h3>
+                    <blockquote>
+                        "APOLLO has completely transformed my revision strategy. The personalized practice papers and AI explanations helped me achieve an A* in my Computer Science A-Level."
+                    </blockquote>
+                    <p>— Alex P., Former A-Level Student</p>
+                </div>
+            </section>
+        </main>
         
-        <!-- Global Chat Container -->
-        <div id="global-chat-container" class="global-chat-container">
-            <div class="global-chat-header">
-                <h3>LOKI Assistant</h3>
-            </div>
-            <div id="global-chat-messages" class="global-chat-messages">
-                <!-- Messages will be added by JavaScript -->
-            </div>
-            <div class="global-chat-input-container">
-                <textarea id="global-chat-input" placeholder="Ask a CS question..."></textarea>
-                <button id="global-chat-send-btn" class="btn btn-primary">Send</button>
-            </div>
-        </div>
+        <footer>
+            <p>&copy; 2025 APOLLO - Your full time professional private tutor for OCR A-Level Computer Science</p>
+        </footer>
     </div>
-    
-    <!-- Scripts -->
-    <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
 </body>
 </html>

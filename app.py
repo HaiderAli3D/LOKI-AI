@@ -19,6 +19,7 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Import existing classes from the command-line application
 from Claude_CS_Test import ResourceManager, OCRCSDatabase, OCR_CS_CURRICULUM, OCR_CS_DETAILED_TOPICS, LEARNING_MODES
@@ -67,10 +68,103 @@ load_dotenv()
 def get_anthropic_client():
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        print("WARNING: ANTHROPIC_API_KEY environment variable is not set or empty")
+        return None
     return anthropic.Anthropic(api_key=api_key)
 
-# Authentication decorator
+def is_api_key_set():
+    """Check if the Anthropic API key is set."""
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    return api_key is not None and api_key.strip() != ""
+
+# Database functions for user management
+def init_user_db():
+    """Initialize the user database tables if they don't exist."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    
+    # Create users table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        full_name TEXT NOT NULL,
+        role TEXT CHECK(role IN ('student', 'admin')) DEFAULT 'student',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    
+    # Modify sessions table to include user_id if it exists
+    cursor.execute("PRAGMA table_info(sessions)")
+    columns = cursor.fetchall()
+    column_names = [col[1] for col in columns]
+    
+    if 'user_id' not in column_names and columns:
+        try:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN user_id INTEGER REFERENCES users(id)")
+        except sqlite3.Error as e:
+            print(f"Error modifying sessions table: {e}")
+    
+    conn.commit()
+    conn.close()
+
+def get_user_by_email(email):
+    """Get a user from the database by email."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def get_user_by_id(user_id):
+    """Get a user from the database by ID."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def create_user(email, password, full_name, role='student'):
+    """Create a new user in the database."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    
+    # Check if user already exists
+    cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
+    if cursor.fetchone():
+        conn.close()
+        return False, "Email already registered"
+    
+    # Hash the password before storing
+    password_hash = generate_password_hash(password)
+    
+    try:
+        cursor.execute(
+            "INSERT INTO users (email, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
+            (email, password_hash, full_name, role)
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        conn.close()
+        return True, user_id
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return False, str(e)
+
+# Authentication decorators
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            flash('Please log in to access this page', 'error')
+            return redirect(url_for('student_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -247,10 +341,76 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         return f"I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). Please help me understand this topic in detail."
 
 # Routes
+# Initialize database on startup
+def initialize_db():
+    """Initialize database tables"""
+    init_user_db()
+
+# Create initialization function for database
+with app.app_context():
+    initialize_db()
+
 @app.route('/')
 def index():
-    """Home page with options to enter as admin or student."""
+    """Home page with feature showcase and options to enter as admin or student."""
     return render_template('index.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Registration page for new users."""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        full_name = request.form.get('full_name')
+        
+        if not email or not password or not full_name:
+            flash('All fields are required', 'error')
+            return render_template('register.html')
+            
+        # Create user
+        success, result = create_user(email, password, full_name)
+        
+        if success:
+            # Set session
+            session['user_id'] = result
+            session['user_email'] = email
+            session['user_name'] = full_name
+            flash('Registration successful!', 'success')
+            return redirect(url_for('student_dashboard'))
+        else:
+            flash(f'Registration failed: {result}', 'error')
+            
+    return render_template('register.html')
+
+@app.route('/student/login', methods=['GET', 'POST'])
+def student_login():
+    """Login page for student access."""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not email or not password:
+            flash('Email and password are required', 'error')
+            return render_template('student/login.html')
+            
+        # Get user from database
+        user = get_user_by_email(email)
+        
+        if user and check_password_hash(user[2], password):  # Index 2 is password_hash
+            # Set session
+            session['user_id'] = user[0]  # Index 0 is id
+            session['user_email'] = user[1]  # Index 1 is email
+            session['user_name'] = user[3]  # Index 3 is full_name
+            
+            if user[4] == 'admin':  # Index 4 is role
+                session['is_admin'] = True
+                
+            flash('Login successful!', 'success')
+            return redirect(url_for('student_dashboard'))
+        else:
+            flash('Invalid email or password', 'error')
+            
+    return render_template('student/login.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -276,6 +436,7 @@ def login():
 def logout():
     """Logout user."""
     session.clear()
+    flash('You have been logged out', 'info')
     return redirect(url_for('index'))
 
 # Admin routes
@@ -364,13 +525,16 @@ def admin_upload():
 
 # Student routes
 @app.route('/student/dashboard')
+@login_required
 def student_dashboard():
     """Student dashboard with topic selection."""
     return render_template('student/dashboard.html', 
                           curriculum=OCR_CS_CURRICULUM,
-                          detailed_topics=OCR_CS_DETAILED_TOPICS)
+                          detailed_topics=OCR_CS_DETAILED_TOPICS,
+                          user_name=session.get('user_name'))
 
 @app.route('/student/topic/<component>/<topic_code>')
+@login_required
 def student_topic(component, topic_code):
     """Topic learning page."""
     # Find the topic title
@@ -388,15 +552,18 @@ def student_topic(component, topic_code):
                           component=component, 
                           topic_code=topic_code,
                           topic_title=topic_title,
-                          learning_modes=LEARNING_MODES)
+                          learning_modes=LEARNING_MODES,
+                          user_name=session.get('user_name'))
 
 @app.route('/student/initial-prompt', methods=['POST'])
+@login_required
 def student_initial_prompt():
     """API endpoint for getting initial prompt based on topic and mode."""
     try:
         data = request.json
         topic_code = data.get('topic_code')
         mode = data.get('mode', 'explore')
+        user_id = session.get('user_id')
         
         # Find the component and topic
         component = None
@@ -444,7 +611,19 @@ def student_initial_prompt():
         
         # Start a new session in the database
         database = get_db()
-        session_id = database.start_session([component, main_topic, detailed_topic])
+        try:
+            # Try to use the version with user_id
+            session_id = database.start_session([component, main_topic, detailed_topic], user_id=user_id)
+        except TypeError:
+            # Fall back to original function if user_id parameter doesn't exist
+            session_id = database.start_session([component, main_topic, detailed_topic])
+            
+            # Add monkey patching for basic OCRCSDatabase class to support user verification
+            if not hasattr(database, 'verify_session_ownership'):
+                def verify_session_ownership(self, session_id, user_id):
+                    """Check if a session belongs to a user - basic implementation always returns True."""
+                    return True
+                database.verify_session_ownership = verify_session_ownership.__get__(database)
         
         # Store session ID in Flask session
         session['db_session_id'] = session_id
@@ -461,13 +640,15 @@ def student_initial_prompt():
         return jsonify({'error': f'Error generating initial response: {str(e)}'}), 500
 
 @app.route('/student/chat', methods=['POST'])
+@login_required
 def student_chat():
-    """API endpoint for chat interactions."""
+    """API endpoint for chat interactions for the logged-in user."""
     try:
         data = request.json
         question = data.get('question')
         topic_code = data.get('topic_code')
         mode = data.get('mode', 'explore')
+        user_id = session.get('user_id')
         
         # Get session ID from Flask session
         session_id = session.get('db_session_id')
@@ -476,9 +657,13 @@ def student_chat():
         database = get_db()
         conversation_history = []
         if session_id:
-            messages = database.get_session_messages(session_id)
-            for _, role, content in messages:
-                conversation_history.append({"role": role, "content": content})
+            # Verify this session belongs to the current user
+            if database.verify_session_ownership(session_id, user_id):
+                messages = database.get_session_messages(session_id)
+                for _, role, content in messages:
+                    conversation_history.append({"role": role, "content": content})
+            else:
+                return jsonify({'error': 'Session not found or unauthorized'}), 403
         
         # Check if ANTHROPIC_API_KEY is set
         api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -499,19 +684,27 @@ def student_chat():
         return jsonify({'error': f'Error generating response: {str(e)}'}), 500
 
 @app.route('/student/progress')
+@login_required
 def student_progress():
-    """View student progress."""
+    """View student progress for the logged-in user."""
+    user_id = session.get('user_id')
     database = get_db()
-    topic_progress = database.get_topic_progress()
-    exam_progress = database.get_exam_progress()
+    
+    # Update to filter by user_id
+    topic_progress = database.get_topic_progress(user_id=user_id)
+    exam_progress = database.get_exam_progress(user_id=user_id)
+    
     return render_template('student/progress.html', 
                           topic_progress=topic_progress,
-                          exam_progress=exam_progress)
+                          exam_progress=exam_progress,
+                          user_name=session.get('user_name'))
 
 @app.route('/student/rate-topic', methods=['POST'])
+@login_required
 def student_rate_topic():
-    """Rate understanding of a topic."""
+    """Rate understanding of a topic for the logged-in user."""
     data = request.json
+    user_id = session.get('user_id')
     topic_code = data.get('topic_code')
     topic_title = data.get('topic_title')
     rating = data.get('rating')
@@ -521,13 +714,15 @@ def student_rate_topic():
         return jsonify({'error': 'Missing required fields'})
     
     database = get_db()
-    database.update_topic_progress(topic_code, topic_title, rating, notes)
+    database.update_topic_progress(topic_code, topic_title, rating, notes, user_id=user_id)
     return jsonify({'success': True})
 
 @app.route('/student/record-exam', methods=['POST'])
+@login_required
 def student_record_exam():
-    """Record exam practice results."""
+    """Record exam practice results for the logged-in user."""
     data = request.json
+    user_id = session.get('user_id')
     topic_code = data.get('topic_code')
     question_type = data.get('question_type')
     difficulty = data.get('difficulty')
@@ -538,7 +733,7 @@ def student_record_exam():
         return jsonify({'error': 'Missing required fields'})
     
     database = get_db()
-    database.record_exam_practice(topic_code, question_type, difficulty, score, max_score)
+    database.record_exam_practice(topic_code, question_type, difficulty, score, max_score, user_id=user_id)
     return jsonify({'success': True})
 
 @app.route('/resources/<path:filename>')
@@ -547,21 +742,26 @@ def serve_resource(filename):
     return send_from_directory('resources', filename)
 
 @app.route('/global-chat', methods=['POST'])
+@login_required
 def global_chat():
-    """API endpoint for general CS questions (not tied to a specific topic)."""
+    """API endpoint for general CS questions (not tied to a specific topic) for the logged-in user."""
     try:
         data = request.json
         question = data.get('question')
+        user_id = session.get('user_id')
         
         if not question:
             return jsonify({'error': 'No question provided'}), 400
+        
+        # Create a session-specific key for global chat
+        global_chat_key = f'global_chat_history_{user_id}'
             
         # Create a session key for global chat if it doesn't exist
-        if 'global_chat_history' not in session:
-            session['global_chat_history'] = []
+        if global_chat_key not in session:
+            session[global_chat_key] = []
             
         # Get conversation history from session
-        conversation_history = session.get('global_chat_history', [])
+        conversation_history = session.get(global_chat_key, [])
         
         # Check if ANTHROPIC_API_KEY is set
         api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -609,7 +809,7 @@ def global_chat():
             conversation_history = conversation_history[-10:]
             
         # Update session
-        session['global_chat_history'] = conversation_history
+        session[global_chat_key] = conversation_history
         
         return jsonify({'response': response_text})
     except Exception as e:

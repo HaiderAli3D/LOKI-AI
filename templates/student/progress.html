@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Progress - LOKI for OCR A-Level Computer Science</title>
+    <title>My Progress - APOLLO for OCR A-Level Computer Science</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <header>
-        <h1>LOKI</h1>
-        <p>My Progress - Learning Oriented Knowledge Interface for OCR A-Level Computer Science</p>
+        <h1>APOLLO</h1>
+        <p>My Progress - Your full time professional private tutor for OCR A-Level Computer Science</p>
         <nav class="student-nav">
             <ul>
                 <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
@@ -116,14 +116,17 @@
             </main>
             
             <footer>
-                <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
+                <p>&copy; 2025 APOLLO - Your full time professional private tutor for OCR A-Level Computer Science</p>
             </footer>
         </div>
         
         <!-- Global Chat Container -->
         <div id="global-chat-container" class="global-chat-container">
             <div class="global-chat-header">
-                <h3>LOKI Assistant</h3>
+                <h3>APOLLO Assistant</h3>
+                <button id="global-chat-toggle" class="global-chat-toggle" aria-label="Toggle chat">
+                    <span>▼ Collapse</span>
+                </button>
             </div>
             <div id="global-chat-messages" class="global-chat-messages">
                 <!-- Messages will be added by JavaScript -->

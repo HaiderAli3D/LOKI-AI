@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ topic_title }} - LOKI for OCR A-Level Computer Science</title>
+    <title>{{ topic_title }} - APOLLO for OCR A-Level Computer Science</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- PDF.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <header>
-        <h1>LOKI</h1>
-        <p>{{ topic_title }} - Learning Oriented Knowledge Interface for OCR A-Level Computer Science</p>
+        <h1>APOLLO</h1>
+        <p>{{ topic_title }} - Your full time professional private tutor for OCR A-Level Computer Science</p>
         <nav class="student-nav">
             <ul>
                 <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
@@ -21,12 +23,11 @@
         </nav>
     </header>
     
-    
     <div class="page-with-pdf-and-chat">
         <!-- PDF Viewer Sidebar -->
         <div id="pdf-sidebar" class="pdf-sidebar">
             <div class="pdf-header">
-                <h3>LOKI Notes</h3>
+                <h3>APOLLO Notes</h3>
             </div>
             <div id="pdf-filename" class="pdf-filename">Loading...</div>
             <div id="pdf-status" class="pdf-status"></div>
@@ -48,7 +49,20 @@
                     <h2>{{ topic_title }}</h2>
                     <div class="learning-modes">
                         {% for mode, description in learning_modes.items() %}
-                            <button class="mode-btn {% if loop.first %}active{% endif %}" data-mode="{{ mode }}">{{ mode|title }}</button>
+                            <button class="mode-btn {% if loop.first %}active{% endif %}" data-mode="{{ mode }}">
+                                {% if mode == 'explore' %}
+                                    <i class="fas fa-compass"></i>
+                                {% elif mode == 'practice' %}
+                                    <i class="fas fa-tasks"></i>
+                                {% elif mode == 'code' %}
+                                    <i class="fas fa-code"></i>
+                                {% elif mode == 'review' %}
+                                    <i class="fas fa-book-open"></i>
+                                {% elif mode == 'test' %}
+                                    <i class="fas fa-vial"></i>
+                                {% endif %}
+                                <span>{{ mode|title }}</span>
+                            </button>
                         {% endfor %}
                     </div>
                     
@@ -66,7 +80,7 @@
                     
                     <div class="chat-input">
                         <textarea id="user-input" placeholder="Ask a question..."></textarea>
-                        <button id="send-btn">Send</button>
+                        <button id="send-btn" class="btn btn-primary">Send</button>
                     </div>
                 </section>
                 
@@ -128,14 +142,17 @@
             </main>
             
             <footer>
-                <p>&copy; 2025 LOKI (Learning Oriented Knowledge Interface) for OCR A-Level Computer Science</p>
+                <p>&copy; 2025 APOLLO - Your full time professional private tutor for OCR A-Level Computer Science</p>
             </footer>
         </div>
         
         <!-- Global Chat Container -->
         <div id="global-chat-container" class="global-chat-container">
             <div class="global-chat-header">
-                <h3>LOKI Assistant</h3>
+                <h3>APOLLO Assistant</h3>
+                <button id="global-chat-toggle" class="global-chat-toggle" aria-label="Toggle chat">
+                    <span>▼ Collapse</span>
+                </button>
             </div>
             <div id="global-chat-messages" class="global-chat-messages">
                 <!-- Messages will be added by JavaScript -->
