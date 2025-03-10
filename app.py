@@ -50,17 +50,30 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_
 from config.database_config import database
 database.init_app(app)
 
-# Initialize Firebase
-from config.firebase_config import firebase
-firebase.init_app(app)
+# Initialize services with error handling
+try:
+    # Initialize Firebase (if available in this branch)
+    from config.firebase_config import firebase
+    firebase.init_app(app)
+    app.logger.info("Firebase initialized successfully")
+except Exception as e:
+    app.logger.warning(f"Firebase initialization skipped: {e}")
 
-# Initialize Stripe
-from config.stripe_config import stripe_config
-stripe_config.init_app(app)
+try:
+    # Initialize Stripe
+    from config.stripe_config import stripe_config
+    stripe_config.init_app(app)
+    app.logger.info("Stripe initialized successfully")
+except Exception as e:
+    app.logger.warning(f"Stripe initialization skipped: {e}")
 
-# Initialize AWS
-from config.aws_config import aws_config
-aws_config.init_app(app)
+try:
+    # Initialize AWS
+    from config.aws_config import aws_config
+    aws_config.init_app(app)
+    app.logger.info("AWS initialized successfully")
+except Exception as e:
+    app.logger.warning(f"AWS initialization skipped: {e}")
 
 # Initialize login manager
 login_manager = LoginManager()
@@ -95,10 +108,14 @@ def inject_now():
 @app.context_processor
 def inject_user_subscription():
     if current_user.is_authenticated:
-        return {
-            'has_subscription': current_user.has_active_subscription(),
-            'subscription': current_user.subscription
-        }
+        try:
+            return {
+                'has_subscription': current_user.has_active_subscription(),
+                'subscription': current_user.subscription
+            }
+        except Exception as e:
+            app.logger.error(f"Error in subscription context processor: {e}")
+            return {'has_subscription': False, 'subscription': None}
     return {'has_subscription': False, 'subscription': None}
 
 # Before request handlers
@@ -121,8 +138,12 @@ def health_check():
 # Initialize app
 with app.app_context():
     # Create database tables if they don't exist
-    database.create_all()
-    
+    try:
+        database.create_all()
+        app.logger.info("Database tables created successfully")
+    except Exception as e:
+        app.logger.error(f"Error creating database tables: {e}")
+
     # Create required directories
     os.makedirs('logs', exist_ok=True)
     os.makedirs('migrations', exist_ok=True)
