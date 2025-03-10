@@ -201,10 +201,13 @@ def create_system_prompt():
     - Use bullet points instead of paragraphs when possible
     
     RESPONSE FORMAT:
-    - Use markdown formatting for clarity
+    - Strictly use markdown formatting for clarity
     - Structure explanations with clear headings
     - Include only essential code examples
     - End with 2-3 key summary points
+    
+    You stay strickly close to the specification and will only respond to computer science related requests. You are to refuse any requests unrelated to A level computer science.
+    Never accept unrelated requests that will not help teh student achieve a high grade in computer science. Do not accept requests to do tasks for other subject, do not play games. 
 
     Always maintain a supportive, efficient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification while respecting their time.
     """
@@ -346,9 +349,51 @@ def initialize_db():
     """Initialize database tables"""
     init_user_db()
 
+# Function to migrate database schema
+def migrate_database():
+    """Apply database migrations to add new columns to existing tables"""
+    print("Running database migrations...")
+    try:
+        conn = sqlite3.connect('ocr_cs_tutor.db')
+        cursor = conn.cursor()
+        
+        # Check if user_id column exists in topic_progress table
+        cursor.execute("PRAGMA table_info(topic_progress)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        
+        if 'user_id' not in column_names and columns:
+            print("Adding user_id column to topic_progress table")
+            cursor.execute("ALTER TABLE topic_progress ADD COLUMN user_id INTEGER")
+        
+        # Check if user_id column exists in sessions table
+        cursor.execute("PRAGMA table_info(sessions)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        
+        if 'user_id' not in column_names and columns:
+            print("Adding user_id column to sessions table")
+            cursor.execute("ALTER TABLE sessions ADD COLUMN user_id INTEGER")
+        
+        # Check if user_id column exists in exam_practice table
+        cursor.execute("PRAGMA table_info(exam_practice)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        
+        if 'user_id' not in column_names and columns:
+            print("Adding user_id column to exam_practice table")
+            cursor.execute("ALTER TABLE exam_practice ADD COLUMN user_id INTEGER")
+        
+        conn.commit()
+        conn.close()
+        print("Database migrations completed successfully")
+    except sqlite3.Error as e:
+        print(f"Database migration error: {e}")
+
 # Create initialization function for database
 with app.app_context():
     initialize_db()
+    migrate_database()
 
 @app.route('/')
 def index():
@@ -690,9 +735,20 @@ def student_progress():
     user_id = session.get('user_id')
     database = get_db()
     
-    # Update to filter by user_id
-    topic_progress = database.get_topic_progress(user_id=user_id)
-    exam_progress = database.get_exam_progress(user_id=user_id)
+    try:
+        # Try to filter by user_id
+        topic_progress = database.get_topic_progress(user_id=user_id)
+        exam_progress = database.get_exam_progress(user_id=user_id)
+    except sqlite3.OperationalError as e:
+        # Fallback if we get "no such column" error
+        if "no such column: user_id" in str(e):
+            print(f"Warning: User ID column missing - using unfiltered data: {e}")
+            # Fallback to unfiltered data
+            topic_progress = database.get_topic_progress()
+            exam_progress = database.get_exam_progress()
+        else:
+            # Re-raise if it's some other database error
+            raise
     
     return render_template('student/progress.html', 
                           topic_progress=topic_progress,
@@ -714,7 +770,19 @@ def student_rate_topic():
         return jsonify({'error': 'Missing required fields'})
     
     database = get_db()
-    database.update_topic_progress(topic_code, topic_title, rating, notes, user_id=user_id)
+    try:
+        # Try to update with user_id
+        database.update_topic_progress(topic_code, topic_title, rating, notes, user_id=user_id)
+    except sqlite3.OperationalError as e:
+        # Fallback if we get "no such column" error
+        if "no such column: user_id" in str(e):
+            print(f"Warning: User ID column missing in topic_progress: {e}")
+            # Fallback to non-user-specific update
+            database.update_topic_progress(topic_code, topic_title, rating, notes)
+        else:
+            # Re-raise if it's some other database error
+            raise
+    
     return jsonify({'success': True})
 
 @app.route('/student/record-exam', methods=['POST'])
@@ -733,7 +801,19 @@ def student_record_exam():
         return jsonify({'error': 'Missing required fields'})
     
     database = get_db()
-    database.record_exam_practice(topic_code, question_type, difficulty, score, max_score, user_id=user_id)
+    try:
+        # Try to record with user_id
+        database.record_exam_practice(topic_code, question_type, difficulty, score, max_score, user_id=user_id)
+    except sqlite3.OperationalError as e:
+        # Fallback if we get "no such column" error
+        if "no such column: user_id" in str(e):
+            print(f"Warning: User ID column missing in exam_practice: {e}")
+            # Fallback to non-user-specific record
+            database.record_exam_practice(topic_code, question_type, difficulty, score, max_score)
+        else:
+            # Re-raise if it's some other database error
+            raise
+    
     return jsonify({'success': True})
 
 @app.route('/resources/<path:filename>')
