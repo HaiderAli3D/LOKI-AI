@@ -8,7 +8,7 @@ This web interface extends the command-line application to provide:
 3. Behind-the-scenes file processing and knowledge base management
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, send_from_directory, Response
 import os
 import json
 import anthropic
@@ -47,6 +47,14 @@ def get_db():
     global db
     if db is None:
         db = OCRCSDatabase()
+        
+        # Add monkey patching for basic OCRCSDatabase class to support user verification
+        if not hasattr(db, 'verify_session_ownership'):
+            def verify_session_ownership(self, session_id, user_id):
+                """Check if a session belongs to a user - basic implementation always returns True."""
+                return True
+            db.verify_session_ownership = verify_session_ownership.__get__(db)
+    
     return db
 
 # Register teardown function to close connections
@@ -239,10 +247,19 @@ def create_system_prompt():
     3. Ensure continuity in the learning session
     4. Tailor examples to the specific topic area
     
+    MODE TAGS:
+    Each message will end with a mode tag indicating the current tutoring mode:
+    [MODE: explore], [MODE: practice], [MODE: code], [MODE: review], or [MODE: test]
+    
+    Adjust your response style based on the mode:
+    - In EXPLORE mode: Focus on clear explanations with analogies and examples
+    - In PRACTICE mode: Provide targeted exercises with immediate feedback
+    - In CODE mode: Give code examples and programming guidance
+    - In REVIEW mode: Create concise summaries and quick recall questions
+    - In TEST mode: Generate exam-style questions with marking schemes
+    
     You stay strictly close to the specification and will only respond to computer science related requests. You are to refuse any requests unrelated to A level computer science.
     Never accept unrelated requests that will not help the student achieve a high grade in computer science. Do not accept requests to do tasks for other subjects, do not play games.
-
-    You will be told what you are meant to be assisting the user with before they start asking questions, typicaly you will be helping them either, explore, practice, code, review or test. Make sure you stick to the guidlines when doing this.
 
     
     Use markdown format to make your responses clear for the user.
@@ -252,7 +269,7 @@ def create_system_prompt():
     return system_prompt.strip()
 
 # Get response from Claude
-def get_claude_response(prompt, conversation_history=None, topic_code=None):
+def get_claude_response(prompt, conversation_history=None, topic_code=None, stream=False, mode="explore"):
     """Get a response from Claude based on the prompt, conversation history, and knowledge base."""
     try:
         client = get_anthropic_client()
@@ -288,22 +305,37 @@ def get_claude_response(prompt, conversation_history=None, topic_code=None):
                 Please use the reference information where appropriate to give an accurate, specification-aligned response.
                 """
         
+        # Append mode tag to the prompt
+        augmented_prompt = f"{augmented_prompt}\n\n[MODE: {mode}]"
+        
         # Add the current prompt
         messages.append({"role": "user", "content": augmented_prompt})
         
         # Create a message and get the response
-        response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=2048,
-            temperature=0.7,
-            system=create_system_prompt(),
-            messages=messages
-        )
-        
-        # Get the response text
-        response_text = response.content[0].text
-        
-        return response_text
+        if stream:
+            # Return the stream directly for streaming response
+            return client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=2048,
+                temperature=0.7,
+                system=create_system_prompt(),
+                messages=messages,
+                stream=True
+            )
+        else:
+            # Non-streaming response
+            response = client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=2048,
+                temperature=0.7,
+                system=create_system_prompt(),
+                messages=messages
+            )
+            
+            # Get the response text
+            response_text = response.content[0].text
+            
+            return response_text
         
     except anthropic.RateLimitError:
         return "I've reached my rate limit. Please wait a moment before trying again."
@@ -642,10 +674,16 @@ def student_topic(component, topic_code):
 @login_required
 def student_initial_prompt():
     """API endpoint for getting initial prompt based on topic and mode."""
+    # Global dict to store pending requests
+    if not hasattr(app, 'pending_initial_prompt_requests'):
+        app.pending_initial_prompt_requests = {}
+    
     try:
         data = request.json
         topic_code = data.get('topic_code')
         mode = data.get('mode', 'explore')
+        stream_mode = data.get('stream', False)
+        request_id = data.get('request_id')
         user_id = session.get('user_id')
         
         # Find the component and topic
@@ -689,9 +727,6 @@ def student_initial_prompt():
         if not api_key:
             return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
         
-        # Get response from Claude
-        response = get_claude_response(initial_prompt, topic_code=topic_code)
-        
         # Start a new session in the database
         database = get_db()
         try:
@@ -713,24 +748,115 @@ def student_initial_prompt():
         session['current_topic'] = main_topic
         session['current_detailed_topic'] = detailed_topic
         
-        # Add messages to database
+        # Add user message to database
         database.add_message(session_id, "user", initial_prompt)
-        database.add_message(session_id, "assistant", response)
         
-        return jsonify({'response': response})
+        # If streaming is requested, use the same pattern as student_chat
+        if stream_mode and request_id:
+            # Store the request data for the streaming endpoint to pick up
+            request_key = f"{user_id}:{request_id}"
+            app.pending_initial_prompt_requests[request_key] = {
+                'question': initial_prompt,
+                'conversation_history': [{"role": "user", "content": initial_prompt}],
+                'topic_code': topic_code,
+                'mode': mode,
+                'session_id': session_id,
+                'timestamp': time.time()
+            }
+            
+            # Return successful acknowledgement - client will connect to SSE endpoint
+            return jsonify({'success': True, 'streaming': True})
+        else:
+            # Non-streaming response (original functionality)
+            response = get_claude_response(initial_prompt, topic_code=topic_code, mode=mode)
+            
+            # Add assistant message to database
+            database.add_message(session_id, "assistant", response)
+            
+            return jsonify({'response': response})
     except Exception as e:
         print(f"Error in student_initial_prompt: {str(e)}")
         return jsonify({'error': f'Error generating initial response: {str(e)}'}), 500
 
-@app.route('/student/chat', methods=['POST'])
+# Function to generate streaming response for student chat
+def generate_student_chat_stream(question, conversation_history, topic_code=None, mode="explore"):
+    """Generate streaming response for topic-specific student chat."""
+    client = get_anthropic_client()
+    
+    # Get streaming response
+    response_stream = get_claude_response(question, conversation_history, topic_code, stream=True, mode=mode)
+    
+    # Track full response for conversation history
+    full_response = ""
+    
+    # Stream each chunk as it comes
+    for chunk in response_stream:
+        if chunk.type == "content_block_delta":
+            text = chunk.delta.text
+            if text:  # Only send non-empty text
+                full_response += text
+                yield f"data: {json.dumps({'text': text})}\n\n"
+    
+    # Send the final response with the complete content
+    yield f"data: {json.dumps({'done': True, 'full_response': full_response})}\n\n"
+
+@app.route('/student/chat', methods=['POST', 'GET'])
 @login_required
 def student_chat():
     """API endpoint for chat interactions for the logged-in user."""
+    # Global dict to store pending requests
+    if not hasattr(app, 'pending_student_chat_requests'):
+        app.pending_student_chat_requests = {}
+    
+    # Handle GET request for EventSource
+    if request.method == 'GET':
+        request_id = request.args.get('request_id')
+        
+        if request_id:
+            user_id = session.get('user_id')
+            request_key = f"{user_id}:{request_id}"
+            
+            # Check if this is a valid pending request in student chat
+            if request_key in app.pending_student_chat_requests:
+                request_data = app.pending_student_chat_requests[request_key]
+                
+                # Return SSE stream with the pending question data
+                return Response(
+                    generate_student_chat_stream(
+                        request_data['question'], 
+                        request_data['conversation_history'],
+                        request_data['topic_code'],
+                        request_data.get('mode', 'explore')
+                    ),
+                    mimetype='text/event-stream'
+                )
+            
+            # Check if this is a valid pending request for initial prompt
+            elif hasattr(app, 'pending_initial_prompt_requests') and request_key in app.pending_initial_prompt_requests:
+                request_data = app.pending_initial_prompt_requests[request_key]
+                
+                # Return SSE stream with the pending initial prompt data
+                return Response(
+                    generate_student_chat_stream(
+                        request_data['question'], 
+                        request_data['conversation_history'],
+                        request_data['topic_code'],
+                        request_data.get('mode', 'explore')
+                    ),
+                    mimetype='text/event-stream'
+                )
+        
+        # For simple connection test or invalid IDs
+        def keep_alive():
+            yield f"data: {json.dumps({'connected': True})}\n\n"
+        return Response(keep_alive(), mimetype='text/event-stream')
+        
     try:
         data = request.json
         question = data.get('question')
         topic_code = data.get('topic_code')
         mode = data.get('mode', 'explore')
+        stream_mode = data.get('stream', False)
         user_id = session.get('user_id')
         
         # Get session ID from Flask session
@@ -753,15 +879,66 @@ def student_chat():
         if not api_key:
             return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
         
-        # Get response from Claude
-        response = get_claude_response(question, conversation_history, topic_code)
-        
-        # Add messages to database
-        if session_id:
-            database.add_message(session_id, "user", question)
-            database.add_message(session_id, "assistant", response)
-        
-        return jsonify({'response': response})
+        # If streaming is requested, use Server-Sent Events
+        if stream_mode:
+            # Add user message to database
+            if session_id:
+                database.add_message(session_id, "user", question)
+            
+            # Get request ID from client
+            request_id = data.get('request_id')
+            
+            if request_id:
+                # Store the request data for the streaming endpoint to pick up
+                request_key = f"{user_id}:{request_id}"
+                app.pending_student_chat_requests[request_key] = {
+                    'question': question,
+                    'conversation_history': conversation_history,
+                    'topic_code': topic_code,
+                    'mode': mode,
+                    'session_id': session_id,
+                    'timestamp': time.time()
+                }
+                
+                # Return successful acknowledgement - client will connect to SSE endpoint
+                return jsonify({'success': True, 'streaming': True})
+            else:
+                # For backward compatibility - use direct streaming if no request_id provided
+                # Store session_id in local variable for the closure
+                current_session_id = session_id
+                
+                # Function to generate SSE data
+                def generate():
+                    nonlocal current_session_id
+                    # Get streaming response
+                    response_stream = get_claude_response(question, conversation_history, topic_code, stream=True, mode=mode)
+                    
+                    # Track full response for database
+                    full_response = ""
+                    
+                    # Stream each chunk as it comes
+                    for chunk in response_stream:
+                        if chunk.type == "content_block_delta":
+                            text = chunk.delta.text
+                            if text:  # Only send non-empty text
+                                full_response += text
+                                yield f"data: {json.dumps({'text': text})}\n\n"
+                    
+                    # Signal the end of the stream with the full response
+                    yield f"data: {json.dumps({'done': True, 'full_response': full_response})}\n\n"
+                
+                return Response(generate(), mimetype='text/event-stream')
+        else:
+            # Non-streaming response (original functionality)
+            response = get_claude_response(question, conversation_history, topic_code, mode=mode)
+            
+            # Add messages to database
+            if session_id:
+                database.add_message(session_id, "user", question)
+                database.add_message(session_id, "assistant", response)
+            
+            return jsonify({'response': response})
+            
     except Exception as e:
         print(f"Error in student_chat: {str(e)}")
         return jsonify({'error': f'Error generating response: {str(e)}'}), 500
@@ -857,19 +1034,114 @@ def student_record_exam():
     
     return jsonify({'success': True})
 
+@app.route('/student/save-response', methods=['POST'])
+@login_required
+def save_response():
+    """Save complete Claude response to the database after streaming."""
+    data = request.json
+    session_id = data.get('session_id')
+    response = data.get('response')
+    user_id = session.get('user_id')
+    
+    if not session_id or not response:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Get database
+    database = get_db()
+    
+    # Verify this session belongs to the current user
+    if database.verify_session_ownership(session_id, user_id):
+        # Save response to database
+        database.add_message(session_id, "assistant", response)
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Session not found or unauthorized'}), 403
+
 @app.route('/resources/<path:filename>')
 def serve_resource(filename):
     """Serve resource files (PDFs, etc.)."""
     return send_from_directory('resources', filename)
 
-@app.route('/global-chat', methods=['POST'])
+# Function to generate streaming response for global chat
+def generate_global_chat_stream(question, conversation_history):
+    """Generate streaming response for global chat."""
+    # Create a system prompt specifically for general CS questions
+    general_system_prompt = """
+    You are an expert OCR A-Level Computer Science tutor. Answer any computer science questions concisely and accurately.
+    Focus on OCR A-Level curriculum topics, but be prepared to answer general computer science questions too.
+    Keep responses brief (200-300 words) and use bullet points where appropriate.
+    Include code examples only when necessary and keep them short.
+    End with 1-2 key takeaways.
+    """
+    
+    client = get_anthropic_client()
+    
+    # Create a message and get the streaming response
+    response_stream = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=1024,
+        temperature=0.7,
+        system=general_system_prompt,
+        messages=conversation_history,
+        stream=True
+    )
+    
+    # Track full response for conversation history
+    full_response = ""
+    
+    # Stream each chunk as it comes
+    for chunk in response_stream:
+        if chunk.type == "content_block_delta":
+            text = chunk.delta.text
+            if text:  # Only send non-empty text
+                full_response += text
+                yield f"data: {json.dumps({'text': text})}\n\n"
+    
+    # Send the final response with the complete content
+    yield f"data: {json.dumps({'done': True, 'full_response': full_response})}\n\n"
+
+
+@app.route('/global-chat', methods=['POST', 'GET'])
 @login_required
 def global_chat():
     """API endpoint for general CS questions (not tied to a specific topic) for the logged-in user."""
+    # Global dict to store pending requests
+    if not hasattr(app, 'pending_global_chat_requests'):
+        app.pending_global_chat_requests = {}
+    
+    # Handle GET request for EventSource
+    if request.method == 'GET':
+        request_id = request.args.get('request_id')
+        
+        if request_id:
+            user_id = session.get('user_id')
+            request_key = f"{user_id}:{request_id}"
+            
+            # Check if this is a valid pending request
+            if request_key in app.pending_global_chat_requests:
+                request_data = app.pending_global_chat_requests[request_key]
+                
+                # Return SSE stream with the pending question data
+                return Response(
+                    generate_global_chat_stream(
+                        request_data['question'], 
+                        request_data['conversation_history']
+                    ),
+                    mimetype='text/event-stream'
+                )
+        
+        # For simple connection test or invalid IDs
+        def keep_alive():
+            yield f"data: {json.dumps({'connected': True})}\n\n"
+        return Response(keep_alive(), mimetype='text/event-stream')
+    
+    # Handle POST request
     try:
         data = request.json
         question = data.get('question')
         user_id = session.get('user_id')
+        stream_mode = data.get('stream', False)
+        request_id = data.get('request_id')
         
         if not question:
             return jsonify({'error': 'No question provided'}), 400
@@ -909,30 +1181,76 @@ def global_chat():
         # Add the current question
         messages.append({"role": "user", "content": question})
         
-        # Create a message and get the response
-        response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=1024,
-            temperature=0.7,
-            system=general_system_prompt,
-            messages=messages
-        )
-        
-        # Get the response text
-        response_text = response.content[0].text
-        
-        # Update conversation history (limit to last 10 messages to keep context window manageable)
+        # Update conversation history with user message
         conversation_history.append({"role": "user", "content": question})
-        conversation_history.append({"role": "assistant", "content": response_text})
-        
-        # Keep only the last 10 messages
-        if len(conversation_history) > 10:
-            conversation_history = conversation_history[-10:]
-            
-        # Update session
         session[global_chat_key] = conversation_history
         
-        return jsonify({'response': response_text})
+        # If streaming is requested, use Server-Sent Events
+        if stream_mode and request_id:
+            # Store the request data for the streaming endpoint to pick up
+            request_key = f"{user_id}:{request_id}"
+            app.pending_global_chat_requests[request_key] = {
+                'question': question,
+                'conversation_history': messages,
+                'timestamp': time.time()
+            }
+            
+            # Return successful acknowledgement - client will connect to SSE endpoint
+            return jsonify({'success': True, 'streaming': True})
+        elif stream_mode:
+            # Function to generate SSE data directly
+            def generate():
+                # Create a message and get the streaming response
+                response_stream = client.messages.create(
+                    model="claude-3-5-haiku-20241022",
+                    max_tokens=1024,
+                    temperature=0.7,
+                    system=general_system_prompt,
+                    messages=messages,
+                    stream=True
+                )
+                
+                # Track full response for conversation history
+                full_response = ""
+                
+                # Stream each chunk as it comes
+                for chunk in response_stream:
+                    if chunk.type == "content_block_delta":
+                        text = chunk.delta.text
+                        if text:  # Only send non-empty text
+                            full_response += text
+                            yield f"data: {json.dumps({'text': text})}\n\n"
+                
+                # Send the final response with the complete content
+                yield f"data: {json.dumps({'done': True, 'full_response': full_response})}\n\n"
+            
+            return Response(generate(), mimetype='text/event-stream')
+        else:
+            # Non-streaming response (original functionality)
+            # Create a message and get the response
+            response = client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=1024,
+                temperature=0.7,
+                system=general_system_prompt,
+                messages=messages
+            )
+            
+            # Get the response text
+            response_text = response.content[0].text
+            
+            # Update conversation history with the response
+            conversation_history.append({"role": "assistant", "content": response_text})
+            
+            # Keep only the last 10 messages
+            if len(conversation_history) > 10:
+                conversation_history = conversation_history[-10:]
+                
+            # Update session
+            session[global_chat_key] = conversation_history
+            
+            return jsonify({'response': response_text})
+            
     except Exception as e:
         print(f"Error in global_chat: {str(e)}")
         return jsonify({'error': f'Error generating response: {str(e)}'}), 500

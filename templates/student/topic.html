@@ -169,6 +169,7 @@
         const topicCode = "{{ topic_code }}";
         const topicTitle = "{{ topic_title }}";
         let currentMode = "explore"; // Default mode
+        const sessionDBId = "{{ session.get('db_session_id') }}"; // Database session ID for saving responses
     </script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>

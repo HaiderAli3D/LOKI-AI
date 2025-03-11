@@ -703,7 +703,7 @@ header p {
     border-radius: 16px;
     box-shadow: var(--box-shadow);
     overflow: hidden;
-    height: 60vh;
+    height: 120vh;
 }
 
 .chat-messages {

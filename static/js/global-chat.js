@@ -113,48 +113,106 @@ function sendGlobalChatMessage() {
     // Clear input
     globalChatInput.value = '';
     
-    // Add loading message
-    addGlobalChatMessage('system', 'Thinking...');
+    // Create message div for assistant
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', 'assistant');
+    if (globalChatMessages) {
+        globalChatMessages.appendChild(messageDiv);
+    }
     
-    // Call the API to get a response
+    // Display "thinking..." message initially
+    messageDiv.innerHTML = "<em>Thinking...</em>";
+    
+    // Add unique request ID to track this specific request
+    const requestId = Date.now().toString();
+    
+    // Send POST request to initiate streaming
     fetch('/global-chat', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            question: messageWithContext
+            question: messageWithContext,
+            stream: true,
+            request_id: requestId
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
-        // Remove loading message
-        const loadingMsg = globalChatMessages.querySelector('.message.system:last-child');
-        if (loadingMsg) loadingMsg.remove();
-        
         if (data.error) {
-            // Show error message
-            addGlobalChatMessage('system', `Error: ${data.error}`);
-        } else {
-            // Add response
-            addGlobalChatMessage('assistant', data.response);
-            
-            // Update conversation history
-            globalChatHistory.push({
-                role: "assistant",
-                content: data.response
-            });
+            throw new Error(data.error);
         }
         
-        // Scroll to bottom
-        globalChatMessages.scrollTop = globalChatMessages.scrollHeight;
+        // Set up streaming with the unique request ID
+        let fullResponse = '';
+        
+        // Connect to the SSE endpoint with request ID
+        const source = new EventSource(`/global-chat?request_id=${requestId}`);
+        
+        source.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.connected) {
+                    // Just a connection confirmation, ignore
+                    return;
+                }
+                
+                if (data.done) {
+                    source.close();
+                    
+                    // If we have full_response, use it
+                    if (data.full_response) {
+                        fullResponse = data.full_response;
+                        messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    }
+                    
+                    // Update conversation history
+                    globalChatHistory.push({
+                        role: "assistant",
+                        content: fullResponse
+                    });
+                    
+                    // Keep conversation history at a reasonable size
+                    if (globalChatHistory.length > 20) {
+                        globalChatHistory = globalChatHistory.slice(-20);
+                    }
+                    
+                    return;
+                }
+                
+                if (data.text) {
+                    fullResponse += data.text;
+                    messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    if (globalChatMessages) {
+                        globalChatMessages.scrollTop = globalChatMessages.scrollHeight;
+                    }
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error, event.data);
+            }
+        };
+        
+        source.onerror = function(error) {
+            console.error('EventSource error:', error);
+            source.close();
+            
+            if (fullResponse === '') {
+                messageDiv.remove();
+                addGlobalChatMessage('system', 'Error: Failed to get a response. Please try again.');
+            }
+        };
     })
     .catch(error => {
-        console.error('Error:', error);
-        const loadingMsg = globalChatMessages.querySelector('.message.system:last-child');
-        if (loadingMsg) loadingMsg.remove();
+        console.error('Network error:', error);
+        messageDiv.remove();
         addGlobalChatMessage('system', `Error: ${error.message}`);
-        globalChatMessages.scrollTop = globalChatMessages.scrollHeight;
     });
 }
 

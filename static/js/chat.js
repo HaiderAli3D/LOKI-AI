@@ -189,9 +189,6 @@ function sendInitialPrompt() {
     // Clear chat
     chatMessages.innerHTML = '';
     
-    // Add loading message
-    addMessage('system', 'Loading...');
-    
     // Reset conversation history
     conversationHistory = [];
     
@@ -202,7 +199,24 @@ function sendInitialPrompt() {
     // Create context tag for the initial message
     const initialPrompt = create_initial_prompt_with_context(topicCode, topicTitle, currentMode, timeString);
     
-    // Call the API to get an initial response
+    // Add the initial prompt with context to conversation history
+    conversationHistory.push({
+        role: "user",
+        content: initialPrompt
+    });
+    
+    // Create message div for assistant
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', 'assistant');
+    chatMessages.appendChild(messageDiv);
+    
+    // Display "thinking..." message initially
+    messageDiv.innerHTML = "<em>Thinking...</em>";
+    
+    // Add unique request ID to track this specific request
+    const requestId = Date.now().toString();
+    
+    // Call the API to initiate streaming for initial prompt
     fetch('/student/initial-prompt', {
         method: 'POST',
         headers: {
@@ -210,40 +224,96 @@ function sendInitialPrompt() {
         },
         body: JSON.stringify({
             topic_code: topicCode,
-            mode: currentMode
+            mode: currentMode,
+            stream: true,
+            request_id: requestId
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
-        // Remove loading message
-        chatMessages.innerHTML = '';
-        
         if (data.error) {
-            // Show error message
+            messageDiv.remove();
             addMessage('system', `Error: ${data.error}`);
-        } else {
-            // Add response
-            addMessage('assistant', data.response);
-            
-            // Add the initial prompt with context to conversation history
-            conversationHistory.push({
-                role: "user",
-                content: initialPrompt
-            });
-            
-            // Add the assistant's response to conversation history
-            conversationHistory.push({
-                role: "assistant",
-                content: data.response
-            });
+            return;
         }
         
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Set up streaming with the unique request ID
+        let fullResponse = '';
+        
+        // Connect to the SSE endpoint with request ID
+        const source = new EventSource(`/student/chat?request_id=${requestId}`);
+        
+        source.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.connected) {
+                    // Just a connection confirmation, ignore
+                    return;
+                }
+                
+                if (data.done) {
+                    source.close();
+                    
+                    // If we have full_response, use it
+                    if (data.full_response) {
+                        fullResponse = data.full_response;
+                        messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    }
+                    
+                    // Add the assistant's response to conversation history
+                    conversationHistory.push({
+                        role: "assistant",
+                        content: fullResponse
+                    });
+                    
+                    // If we have a session ID in the database, save the response there too
+                    if (sessionDBId) {
+                        fetch('/student/save-response', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                session_id: sessionDBId,
+                                response: fullResponse
+                            })
+                        }).catch(error => {
+                            console.error('Error saving response to database:', error);
+                        });
+                    }
+                    
+                    return;
+                }
+                
+                if (data.text) {
+                    fullResponse += data.text;
+                    messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error, event.data);
+            }
+        };
+        
+        source.onerror = function(error) {
+            console.error('EventSource error:', error);
+            source.close();
+            
+            if (fullResponse === '') {
+                messageDiv.remove();
+                addMessage('system', 'Error: Failed to get a response. Please try again.');
+            }
+        };
     })
     .catch(error => {
         console.error('Error:', error);
-        chatMessages.innerHTML = '';
+        messageDiv.remove();
         addMessage('system', `Error: ${error.message}`);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     });
@@ -273,10 +343,18 @@ function sendMessage() {
     // Clear input
     userInput.value = '';
     
-    // Add loading message
-    addMessage('system', 'Thinking...');
+    // Create message div for assistant
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', 'assistant');
+    chatMessages.appendChild(messageDiv);
     
-    // Call the API to get a response
+    // Display "thinking..." message initially
+    messageDiv.innerHTML = "<em>Thinking...</em>";
+    
+    // Add unique request ID to track this specific request
+    const requestId = Date.now().toString();
+    
+    // Send POST request to initiate streaming
     fetch('/student/chat', {
         method: 'POST',
         headers: {
@@ -285,38 +363,101 @@ function sendMessage() {
         body: JSON.stringify({
             question: messageWithContext,
             topic_code: topicCode,
-            mode: currentMode
+            mode: currentMode,
+            stream: true,
+            request_id: requestId,
+            session_id: sessionDBId
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
-        // Remove loading message
-        const loadingMsg = document.querySelector('.message.system:last-child');
-        if (loadingMsg) loadingMsg.remove();
-        
         if (data.error) {
-            // Show error message
-            addMessage('system', `Error: ${data.error}`);
-        } else {
-            // Add response
-            addMessage('assistant', data.response);
-            
-            // Update conversation history
-            conversationHistory.push({
-                role: "assistant",
-                content: data.response
-            });
+            throw new Error(data.error);
         }
         
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Make sure the response indicates success before trying to stream
+        if (!data.success) {
+            throw new Error('The server did not acknowledge streaming request');
+        }
+        
+        // Set up streaming with the unique request ID
+        let fullResponse = '';
+        
+        // Connect to the SSE endpoint with request ID
+        const source = new EventSource(`/student/chat?request_id=${requestId}`);
+        
+        source.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.connected) {
+                    // Just a connection confirmation, ignore
+                    return;
+                }
+                
+                if (data.done) {
+                    source.close();
+                    
+                    // If we have full_response, use it
+                    if (data.full_response) {
+                        fullResponse = data.full_response;
+                        messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    }
+                    
+                    // Update conversation history
+                    conversationHistory.push({
+                        role: "assistant",
+                        content: fullResponse
+                    });
+                    
+                    // If we have a session ID in the database, save the response there too
+                    if (sessionDBId) {
+                        fetch('/student/save-response', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                session_id: sessionDBId,
+                                response: fullResponse
+                            })
+                        }).catch(error => {
+                            console.error('Error saving response to database:', error);
+                        });
+                    }
+                    
+                    return;
+                }
+                
+                if (data.text) {
+                    fullResponse += data.text;
+                    messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error, event.data);
+            }
+        };
+        
+        source.onerror = function(error) {
+            console.error('EventSource error:', error);
+            source.close();
+            
+            if (fullResponse === '') {
+                messageDiv.remove();
+                addMessage('system', 'Error: Failed to get a response. Please try again.');
+            }
+        };
     })
     .catch(error => {
-        console.error('Error:', error);
-        const loadingMsg = document.querySelector('.message.system:last-child');
-        if (loadingMsg) loadingMsg.remove();
+        console.error('Network error:', error);
+        messageDiv.remove();
         addMessage('system', `Error: ${error.message}`);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
     });
 }
 
