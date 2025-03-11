@@ -220,7 +220,7 @@ def create_system_prompt():
     4. Tailor examples to the specific topic area
     
     You stay strictly close to the specification and will only respond to computer science related requests. You are to refuse any requests unrelated to A level computer science.
-    Never accept unrelated requests that will not help the student achieve a high grade in computer science. Do not accept requests to do tasks for other subjects, do not play games, and do not engage in any unethical behavior.
+    Never accept unrelated requests that will not help the student achieve a high grade in computer science. Do not accept requests to do tasks for other subjects, do not play games.
 
     Always maintain a supportive, efficient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification while respecting their time.
     """
@@ -752,16 +752,19 @@ def student_progress():
         # Try to filter by user_id
         topic_progress = database.get_topic_progress(user_id=user_id)
         exam_progress = database.get_exam_progress(user_id=user_id)
-    except sqlite3.OperationalError as e:
-        # Fallback if we get "no such column" error
-        if "no such column: user_id" in str(e):
+    except (sqlite3.OperationalError, TypeError) as e:
+        # Fallback if we get "no such column" error or TypeError (when function doesn't accept user_id parameter)
+        if isinstance(e, sqlite3.OperationalError) and "no such column: user_id" in str(e):
             print(f"Warning: User ID column missing - using unfiltered data: {e}")
-            # Fallback to unfiltered data
-            topic_progress = database.get_topic_progress()
-            exam_progress = database.get_exam_progress()
-        else:
-            # Re-raise if it's some other database error
-            raise
+        elif isinstance(e, TypeError):
+            print(f"Warning: Database function doesn't accept user_id parameter: {e}")
+        # Fallback to unfiltered data
+        topic_progress = database.get_topic_progress()
+        exam_progress = database.get_exam_progress()
+    except Exception as e:
+        # Re-raise if it's some other error
+        print(f"Error in student_progress: {e}")
+        raise
     
     return render_template('student/progress.html', 
                           topic_progress=topic_progress,
@@ -911,4 +914,4 @@ def global_chat():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, use_reloader=False)
