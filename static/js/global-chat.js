@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear existing messages
         globalChatMessages.innerHTML = '';
         // Add welcome message
-        addGlobalChatMessage('assistant', 'Welcome to the Computer Science Help chat! Ask any A-Level CS question here.');
+        addGlobalChatMessage('assistant', 'Welcome to the Computer Science Help chat! Ask any A-Level CS question here and I\'ll provide a fresh, tailored response.');
     }
 });
 
@@ -82,16 +82,6 @@ function toggleGlobalChat() {
         localStorage.setItem('globalChatCollapsed', isCollapsed);
     }
 }
-
-// Pre-written responses for global chat
-const globalChatResponses = {
-    "default": "This is an important concept in A-Level Computer Science. The OCR specification covers this in detail, and you should make sure you understand both the theoretical and practical aspects.\n\nKey points to remember:\n- How this concept fits into the broader curriculum\n- The practical applications in real-world systems\n- How to apply this knowledge in exam questions\n\nRefer to your textbook for more detailed explanations and examples.",
-    "hardware": "Hardware refers to the physical components of a computer system. Key hardware components include:\n\n- CPU (Central Processing Unit)\n- Memory (RAM, ROM, Cache)\n- Storage devices (HDD, SSD, etc.)\n- Input/Output devices\n\nThe OCR specification requires you to understand how these components work together and their individual characteristics.",
-    "software": "Software refers to programs and data that run on computer hardware. There are two main types:\n\n1. Systems software (OS, utilities, drivers)\n2. Applications software (productivity apps, games, etc.)\n\nThe development process includes analysis, design, implementation, testing, and evaluation phases. Understanding the different types of programming languages and their uses is also important.",
-    "programming": "Programming involves creating instructions for computers to follow. Key concepts include:\n\n- Variables and data types\n- Control structures (sequence, selection, iteration)\n- Procedures and functions\n- Data structures (arrays, records, etc.)\n\nThe OCR specification requires you to understand these concepts and be able to apply them in practical programming tasks.",
-    "data": "Data representation is a fundamental concept in computing. You need to understand:\n\n- Binary, hexadecimal, and decimal number systems\n- Character encoding (ASCII, Unicode)\n- Image representation\n- Sound representation\n- Data compression techniques\n\nBeing able to convert between different number systems and calculate file sizes is important for the exam.",
-    "networking": "Computer networks allow devices to communicate and share resources. Key concepts include:\n\n- Network topologies (star, bus, mesh, etc.)\n- Protocols (TCP/IP, HTTP, FTP, etc.)\n- Network hardware (routers, switches, etc.)\n- Security measures\n\nThe OCR specification requires you to understand how networks function and the advantages/disadvantages of different configurations."
-};
 
 // Track conversation history
 let globalChatHistory = [];

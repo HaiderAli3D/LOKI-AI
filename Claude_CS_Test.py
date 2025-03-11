@@ -603,7 +603,7 @@ class OCRCSTutor:
         self.current_detailed_topic = None
         self.current_mode = None
         self.conversation_history = []
-        self.model = "claude-3-7-sonnet-20250219"
+        self.model = "claude-3-5-haiku-20241022"   #"claude-3-7-sonnet-20250219"
         
     def setup_api_client(self):
         """Set up the Anthropic API client."""
@@ -671,42 +671,115 @@ class OCRCSTutor:
         try:
             self.console.print("\n[blue]Generating response...[/blue]")
             
+            # Debug print for prompt
+            print(f"\n[DEBUG] Sending prompt to Claude: {prompt[:150]}..." if len(prompt) > 150 else f"\n[DEBUG] Sending prompt to Claude: {prompt}")
+            
             messages = []
             
             # Include conversation history if needed
             if include_history and self.conversation_history:
                 messages = self.conversation_history.copy()
+                print(f"[DEBUG] Including conversation history with {len(messages)} previous messages")
             
             # Augment prompt with knowledge base information if available
             augmented_prompt = prompt
+            pdf_attached = False
+            spec_added = False
+            
+            # Check for specification file if this is the first prompt in a conversation
+            if not self.conversation_history and self.resource_manager:
+                spec_content = None
+                spec_filename = None
+                
+                # First check for the exact filename "Computer-Science-Spec"
+                for filename in os.listdir(self.resource_manager.resource_dir):
+                    if filename.startswith("Computer-Science-Spec"):
+                        spec_filename = filename
+                        break
+                
+                # If not found, look for files with "Spec" or "specification" in the name
+                if not spec_filename:
+                    for filename in os.listdir(self.resource_manager.resource_dir):
+                        if "spec" in filename.lower() or "specification" in filename.lower():
+                            spec_filename = filename
+                            break
+                
+                # If a specification file was found, read its content
+                if spec_filename:
+                    filepath = os.path.join(self.resource_manager.resource_dir, spec_filename)
+                    if spec_filename.lower().endswith('.pdf'):
+                        spec_content = self.resource_manager.extract_text_from_pdf(filepath)
+                    else:
+                        spec_content = self.resource_manager.read_text_file(filepath)
+                    
+                    if spec_content:
+                        print(f"[DEBUG] Including specification file: {spec_filename}")
+                        spec_added = True
+                        
+                        # Add specification to prompt
+                        augmented_prompt = f"""
+                        [SPECIFICATION INFORMATION]
+                        The following information is from the OCR A-Level Computer Science specification:
+                        
+                        {spec_content}
+                        
+                        [END SPECIFICATION INFORMATION]
+                        
+                        STUDENT QUESTION:
+                        {prompt}
+                        """
+            
+            # Add topic-specific knowledge if available
             if include_knowledge and self.resource_manager and self.current_detailed_topic:
                 topic_code = self.current_detailed_topic.split()[0]
                 knowledge = self.resource_manager.get_knowledge_for_topic(topic_code)
                 
                 if knowledge:
+                    pdf_attached = True
                     # Summarize knowledge to avoid exceeding context limits
                     knowledge_text = "\n\n".join(knowledge)
                     if len(knowledge_text) > 10000:  # Limit knowledge text size
                         knowledge_text = knowledge_text[:10000] + "..."
                     
-                    augmented_prompt = f"""
-                    [REFERENCE INFORMATION]
-                    The following information is from OCR A-Level Computer Science resources related to {self.current_detailed_topic}:
+                    print(f"[DEBUG] Attaching PDF/reference data for topic: {self.current_detailed_topic}")
                     
-                    {knowledge_text}
-                    
-                    [END REFERENCE INFORMATION]
-                    
-                    STUDENT QUESTION:
-                    {prompt}
-                    
-                    Please use the reference information where appropriate to give an accurate, specification-aligned response.
-                    """
+                    # If specification was already added, just append the reference info
+                    if spec_added:
+                        augmented_prompt += f"""
+                        
+                        [REFERENCE INFORMATION]
+                        The following information is from OCR A-Level Computer Science resources related to {self.current_detailed_topic}:
+                        
+                        {knowledge_text}
+                        
+                        [END REFERENCE INFORMATION]
+                        """
+                    else:
+                        # Otherwise create a complete prompt with reference info
+                        augmented_prompt = f"""
+                        [REFERENCE INFORMATION]
+                        The following information is from OCR A-Level Computer Science resources related to {self.current_detailed_topic}:
+                        
+                        {knowledge_text}
+                        
+                        [END REFERENCE INFORMATION]
+                        
+                        STUDENT QUESTION:
+                        {prompt}
+                        
+                        Please use the reference information where appropriate to give an accurate, specification-aligned response.
+                        """
                     
             # Add the current prompt
             messages.append({"role": "user", "content": augmented_prompt})
             
             # Create a message and get the response
+            print(f"[DEBUG] Sending request to Claude API model: {self.model}")
+            if spec_added:
+                print("[DEBUG] This prompt includes the OCR specification")
+            if pdf_attached:
+                print("[DEBUG] This prompt includes PDFs or additional reference data")
+                
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=4096,
@@ -714,6 +787,8 @@ class OCRCSTutor:
                 system=self.create_system_prompt(),
                 messages=messages
             )
+            
+            print("[DEBUG] Response received from Claude API")
             
             # Get the response text
             response_text = response.content[0].text

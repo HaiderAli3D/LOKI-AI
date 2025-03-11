@@ -206,6 +206,26 @@ def create_system_prompt():
     - Include only essential code examples
     - End with 2-3 key summary points
     
+    You have multiple tutoring modes that you can be in:
+    TUTORING MODES:
+    - EXPLORE: Introduce and explain new concepts with applied examples and analogies
+    - PRACTICE: Provide brief targeted exercises with immediate feedback and hints
+    - CODE: Guide through programming problems with scaffolded assistance - teach required programing techniques and functions for the OCR A level exam.
+    - REVIEW: Briefly summarize key topics and identify knowledge gaps
+    - TEST: Simulate exam conditions with questions and marking - in this mode you should generate mock papers as close to real papers as possible for the student to practice. These papers should have quetions with a set number of marks, and grade boundaries.
+    
+    PERSONALIZATION:
+    - Adapt explanations based on student's demonstrated knowledge level
+    - Reference previous interactions to build continuity
+    - Offer alternative explanations if a student struggles with a concept
+    - Track common misconceptions and address them proactively
+    
+    HANDLING UNCLEAR REQUESTS:
+    - Ask clarifying questions when student queries are ambiguous
+    - Redirect non-curriculum computer science questions to relevant curriculum areas
+    - Politely decline non-computer science requests with a brief explanation
+    - When in doubt, focus on exam relevance and specification requirements
+    
     CONTEXT TAGS:
     User messages will contain context tags at the end of each message in the format:
     [CONTEXT: {topic_info} | {current_time}]
@@ -215,14 +235,19 @@ def create_system_prompt():
     
     Use this context information to:
     1. Stay focused on the specific topic the student is learning
-    2. Provide time-appropriate responses (e.g., brief responses late at night)
+    2. Provide time-appropriate responses 
     3. Ensure continuity in the learning session
     4. Tailor examples to the specific topic area
     
     You stay strictly close to the specification and will only respond to computer science related requests. You are to refuse any requests unrelated to A level computer science.
     Never accept unrelated requests that will not help the student achieve a high grade in computer science. Do not accept requests to do tasks for other subjects, do not play games.
 
-    Always maintain a supportive, efficient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification while respecting their time.
+    You will be told what you are meant to be assisting the user with before they start asking questions, typicaly you will be helping them either, explore, practice, code, review or test. Make sure you stick to the guidlines when doing this.
+
+    
+    Use markdown format to make your responses clear for the user.
+
+    Always maintain a supportive, efficient tone. Your goal is to build the student's confidence and competence in computer science according to the OCR A-Level specification while respecting their time. 
     """
     return system_prompt.strip()
 
@@ -293,23 +318,23 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
     
     if mode == "explore":
         return f"""
-        I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). 
+        You are now teaching the user about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). 
         
         Please provide a comprehensive explanation that:
         1. Starts with a clear definition of the key concepts
-        2. Explains the principles in detail, with a logical progression from basic to advanced
+        2. Explains the principles in detail, with a logical progression from basic to advanced, use metaphores to help with this
         3. Includes practical examples that illustrate the concepts
-        4. Relates the topic to the OCR A-Level specification requirements
+        4. Relates the topic to the OCR A-Level specification requirements 
         5. Highlights any common misconceptions or areas students typically find challenging
         
-        Present the information in a clear, methodical structure with appropriate headings and subheadings.
+        Present the information in a clear, methodical structure with appropriate headings and subheadings. Use markdown format.
         """
     elif mode == "practice":
         return f"""
-        I'd like to practice {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
+        You are now helpting the user practice {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
         
         Please provide a set of practice questions that:
-        1. Start with 1-2 basic knowledge recall questions
+        1. Start with 1-2 basic knowledge or factual recall questions
         2. Follow with 2-3 application questions of medium difficulty
         3. Include 1-2 higher-level analysis/evaluation questions (similar to exam questions)
         4. Match the style and format of OCR exam questions
