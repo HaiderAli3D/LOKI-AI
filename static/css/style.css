@@ -277,12 +277,25 @@ header p {
 /* Combined PDF and Chat Layout */
 .page-with-pdf-and-chat {
     display: grid;
-    grid-template-columns: 30% 1fr 30%;
+    grid-template-columns: minmax(50px, 30%) 1fr 30%;
     gap: 20px;
     max-width: 1600px;
     margin: 0 auto;
     padding: 0 15px;
     position: relative;
+    transition: all 0.3s ease;
+}
+
+.page-with-pdf-and-chat.notes-docked {
+    grid-template-columns: 50px 1fr 30%;
+}
+
+.page-with-pdf-and-chat.chat-docked {
+    grid-template-columns: minmax(50px, 30%) 1fr 50px;
+}
+
+.page-with-pdf-and-chat.notes-docked.chat-docked {
+    grid-template-columns: 50px 1fr 50px;
 }
 
 .global-chat-container {
@@ -305,22 +318,36 @@ header p {
     grid-column: 3;
 }
 
-.global-chat-container.collapsed {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 60px;
-    height: 60px;
-    min-height: 60px;
-    min-width: 60px;
-    max-width: 60px;
-    border-radius: 50%;
-    margin: 0;
-    top: auto;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    z-index: 100;
+/* Docked global chat */
+.global-chat-container.docked {
+    width: 50px;
+    min-width: 50px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.global-chat-container.docked .global-chat-header h3,
+.global-chat-container.docked .global-chat-messages,
+.global-chat-container.docked .global-chat-input-container {
+    display: none;
+}
+
+.global-chat-container.docked .global-chat-header {
+    height: 100%;
+    padding: 0;
+    justify-content: center;
+}
+
+.global-chat-container.docked .global-chat-toggle {
+    transform: rotate(180deg);
+}
+
+.global-chat-toggle i {
+    transition: transform 0.3s ease;
+}
+
+.global-chat-container:not(.docked) .global-chat-toggle i {
+    transform: rotate(180deg);
 }
 
 .global-chat-header {
@@ -345,15 +372,18 @@ header p {
     color: white;
     cursor: pointer;
     font-size: 1.2rem;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     transition: all 0.3s ease;
+    border-radius: 50%;
 }
 
 .global-chat-toggle:hover {
-    opacity: 0.8;
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 .global-chat-messages {
@@ -362,32 +392,6 @@ header p {
     overflow-y: auto;
 }
 
-.collapsed .global-chat-messages,
-.collapsed .global-chat-input-container {
-    display: none;
-}
-
-.collapsed .global-chat-header {
-    height: 100%;
-    width: 100%;
-    border-radius: 50%;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.collapsed .global-chat-header h3 {
-    display: none;
-}
-
-.collapsed .global-chat-toggle {
-    transform: rotate(180deg);
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    font-size: 1.5rem;
-}
 
 .global-chat-input-container {
     display: flex;
@@ -429,6 +433,23 @@ header p {
     overflow: hidden;
     z-index: 1;
     grid-column: 1;
+    transition: all 0.3s ease;
+}
+
+/* Docked PDF sidebar state */
+.pdf-sidebar.docked {
+    width: 50px;
+    min-width: 50px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.pdf-sidebar.docked .pdf-header h3,
+.pdf-sidebar.docked .pdf-filename,
+.pdf-sidebar.docked .pdf-status,
+.pdf-sidebar.docked .pdf-container,
+.pdf-sidebar.docked .pdf-controls {
+    display: none;
 }
 
 .pdf-header {
@@ -440,11 +461,43 @@ header p {
     align-items: center;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
+    min-height: 60px;
 }
 
 .pdf-header h3 {
     margin: 0;
     font-size: 1.2rem;
+}
+
+/* Toggle button for PDF sidebar */
+.pdf-dock-toggle {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.3s ease;
+    border-radius: 50%;
+}
+
+.pdf-dock-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.pdf-sidebar.docked .pdf-header {
+    height: 100%;
+    padding: 0;
+    justify-content: center;
+}
+
+.pdf-sidebar.docked .pdf-dock-toggle {
+    transform: rotate(180deg);
 }
 
 .pdf-container {
@@ -529,6 +582,16 @@ header p {
     overflow-x: hidden;
     height: 100%;
     position: relative;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.learning-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Student Dashboard - Topics List */
@@ -703,7 +766,9 @@ header p {
     border-radius: 16px;
     box-shadow: var(--box-shadow);
     overflow: hidden;
-    height: 120vh;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    max-height: 120vh;
 }
 
 .chat-messages {
@@ -956,24 +1021,24 @@ footer {
 /* Media Queries */
 @media (max-width: 1400px) {
     .page-with-pdf-and-chat {
-        grid-template-columns: 35% 1fr;
+        grid-template-columns: minmax(50px, 35%) 1fr;
+    }
+    
+    .page-with-pdf-and-chat.notes-docked {
+        grid-template-columns: 50px 1fr;
+    }
+    
+    .page-with-pdf-and-chat.chat-docked {
+        grid-template-columns: minmax(50px, 35%) 1fr 50px;
+    }
+    
+    .page-with-pdf-and-chat.notes-docked.chat-docked {
+        grid-template-columns: 50px 1fr 50px;
     }
     
     .page-with-pdf-and-chat .global-chat-container {
         grid-column: 2;
         grid-row: 2;
-    }
-    
-    .page-with-pdf-and-chat .main-content {
-        grid-column: 2;
-        grid-row: 1;
-    }
-}
-
-@media (max-width: 992px) {
-    .page-with-pdf-and-chat {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
     }
     
     .pdf-sidebar {
@@ -982,70 +1047,7 @@ footer {
         height: 400px;
     }
     
-    .page-with-pdf-and-chat .main-content {
-        grid-column: 1;
-        grid-row: 2;
-    }
-    
-    .page-with-pdf-and-chat .global-chat-container {
-        grid-column: 1;
-        grid-row: 3;
-    }
-    
-    .page-with-chat {
-        grid-template-columns: 1fr;
-        padding-right: 0;
-    }
-    
-    .global-chat-container {
-        width: 100%;
-        max-width: 100%;
-        position: relative;
-        right: 0;
-    }
-    
-    .learning-modes {
-        flex-direction: column;
-    }
-    
     .topic-actions {
         flex-direction: column;
-    }
-}
-
-@media (max-width: 768px) {
-    .curriculum-container {
-        flex-direction: column;
-        flex-wrap: wrap;
-    }
-    
-    .pdf-sidebar {
-        display: none;
-    }
-    
-    .page-with-pdf-and-chat {
-        grid-template-columns: 1fr;
-    }
-    
-    .page-with-pdf-and-chat .main-content {
-        grid-column: 1;
-        grid-row: 1;
-    }
-    
-    .global-chat-container {
-        height: 500px;
-        grid-column: 1;
-        grid-row: 2;
-    }
-}
-
-@media (max-width: 576px) {
-    .pdf-controls {
-        flex-wrap: wrap;
-    }
-    
-    .pdf-controls button, 
-    .pdf-controls input {
-        margin-bottom: 0.5rem;
     }
 }

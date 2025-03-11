@@ -41,45 +41,57 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Adding click event listener to toggle button');
         globalChatToggle.addEventListener('click', toggleGlobalChat);
         
-        // Check if there's a saved state in localStorage
-        const chatCollapsed = localStorage.getItem('globalChatCollapsed') === 'true';
-        if (chatCollapsed) {
-            globalChatContainer.classList.add('collapsed');
-            // Update toggle button text
-            if (globalChatToggle.querySelector('span')) {
-                globalChatToggle.querySelector('span').textContent = '▲';
+        // Initialize sidebar state (default is docked)
+        const pageContainer = document.querySelector('.page-with-pdf-and-chat');
+        const savedState = localStorage.getItem('globalChatDocked');
+        
+        // If the user has previously set a preference to not be docked, use that
+        if (savedState === 'false') {
+            globalChatContainer.classList.remove('docked');
+            if (pageContainer) {
+                pageContainer.classList.remove('chat-docked');
             }
         } else {
-            // If not collapsed, set the expanded text
-            if (globalChatToggle.querySelector('span')) {
-                globalChatToggle.querySelector('span').textContent = '▼ Collapse';
+            // Otherwise ensure the docked state is applied
+            globalChatContainer.classList.add('docked');
+            if (pageContainer) {
+                pageContainer.classList.add('chat-docked');
             }
+            localStorage.setItem('globalChatDocked', 'true');
         }
     }
     
-    // Clear any existing messages and add a welcome message
+    // Initialize or reset global chat messages
     if (globalChatMessages) {
-        // Clear existing messages
-        globalChatMessages.innerHTML = '';
-        // Add welcome message
-        addGlobalChatMessage('assistant', 'Welcome to the Computer Science Help chat! Ask any A-Level CS question here and I\'ll provide a fresh, tailored response.');
+        // Check if messages already exist
+        if (globalChatMessages.childElementCount === 0) {
+            // Only add welcome message if container is empty
+            addGlobalChatMessage('assistant', 'Welcome to the Computer Science Help chat! Ask any A-Level CS question here and I\'ll provide a fresh, tailored response.');
+        }
     }
 });
 
-// Toggle chat between expanded and collapsed states
+// Toggle chat between expanded and docked states
 function toggleGlobalChat() {
     if (globalChatContainer) {
-        globalChatContainer.classList.toggle('collapsed');
+        const pageContainer = document.querySelector('.page-with-pdf-and-chat');
+        const isDocked = globalChatContainer.classList.contains('docked');
         
-        // Update toggle button text
-        if (globalChatToggle.querySelector('span')) {
-            const isCollapsed = globalChatContainer.classList.contains('collapsed');
-            globalChatToggle.querySelector('span').textContent = isCollapsed ? '▲' : '▼ Collapse';
+        if (isDocked) {
+            // Expand the chat
+            globalChatContainer.classList.remove('docked');
+            if (pageContainer) {
+                pageContainer.classList.remove('chat-docked');
+            }
+            localStorage.setItem('globalChatDocked', 'false');
+        } else {
+            // Dock the chat
+            globalChatContainer.classList.add('docked');
+            if (pageContainer) {
+                pageContainer.classList.add('chat-docked');
+            }
+            localStorage.setItem('globalChatDocked', 'true');
         }
-        
-        // Save state to localStorage
-        const isCollapsed = globalChatContainer.classList.contains('collapsed');
-        localStorage.setItem('globalChatCollapsed', isCollapsed);
     }
 }
 

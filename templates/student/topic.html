@@ -23,11 +23,14 @@
         </nav>
     </header>
     
-    <div class="page-with-pdf-and-chat">
+    <div class="page-with-pdf-and-chat notes-docked">
         <!-- PDF Viewer Sidebar -->
-        <div id="pdf-sidebar" class="pdf-sidebar">
+        <div id="pdf-sidebar" class="pdf-sidebar docked">
             <div class="pdf-header">
                 <h3>APOLLO AI Notes</h3>
+                <button id="pdf-dock-toggle" class="pdf-dock-toggle" aria-label="Toggle PDF sidebar">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
             </div>
             <div id="pdf-filename" class="pdf-filename">Loading...</div>
             <div id="pdf-status" class="pdf-status"></div>
@@ -66,16 +69,16 @@
                         {% endfor %}
                     </div>
                     
-                    <div class="topic-actions">
-                        <button id="rate-understanding-btn" class="btn btn-secondary">Rate Understanding</button>
-                        <button id="record-exam-btn" class="btn btn-secondary">Record Exam Score</button>
-                    </div>
+                <div class="topic-actions">
+                    <button id="rate-understanding-btn" class="btn btn-secondary">Rate Understanding</button>
+                    <button id="record-exam-btn" class="btn btn-secondary">Record Exam Score</button>
+                    <button id="refresh-chat-btn" class="btn btn-secondary"><i class="fas fa-sync"></i> Refresh Chat</button>
+                </div>
                 </aside>
                 
                 <section class="chat-container">
                     <div class="chat-messages" id="chat-messages">
                         <!-- Messages will appear here -->
-                        <div class="message system">Loading...</div>
                     </div>
                     
                     <div class="chat-input">
@@ -147,11 +150,11 @@
         </div>
         
         <!-- Global Chat Container -->
-        <div id="global-chat-container" class="global-chat-container">
+        <div id="global-chat-container" class="global-chat-container docked">
             <div class="global-chat-header">
                 <h3>APOLLO AI Assistant</h3>
                 <button id="global-chat-toggle" class="global-chat-toggle" aria-label="Toggle chat">
-                    <span>▼ Collapse</span>
+                    <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
             <div id="global-chat-messages" class="global-chat-messages">

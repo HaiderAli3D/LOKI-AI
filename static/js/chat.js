@@ -7,17 +7,217 @@ const sendButton = document.getElementById('send-btn');
 const modeBtns = document.querySelectorAll('.mode-btn');
 const rateBtn = document.getElementById('rate-understanding-btn');
 const examBtn = document.getElementById('record-exam-btn');
+const refreshBtn = document.getElementById('refresh-chat-btn');
 const rateModal = document.getElementById('rate-modal');
 const examModal = document.getElementById('exam-modal');
 const closeBtns = document.querySelectorAll('.close-modal');
 const rateForm = document.getElementById('rate-form');
 const examForm = document.getElementById('exam-form');
 
-// Initialize with welcome message
+// Initialize chat when page loads
 window.addEventListener('DOMContentLoaded', () => {
-    // Get initial response based on topic and mode
-    sendInitialPrompt();
+    // Try to load recent messages first
+    if (sessionDBId) {
+        loadRecentMessages();
+    } else {
+        // If no session ID, get initial response based on topic and mode
+        sendInitialPrompt();
+    }
 });
+
+// Function to load recent messages
+function loadRecentMessages() {
+    // Clear any existing messages
+    chatMessages.innerHTML = '';
+    
+    // Add loading message
+    const loadingDiv = document.createElement('div');
+    loadingDiv.classList.add('message', 'system');
+    loadingDiv.innerHTML = "Loading previous messages...";
+    chatMessages.appendChild(loadingDiv);
+    
+    // Fetch recent messages from server - limit to 10 messages
+    fetch('/student/get-recent-messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            session_id: sessionDBId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove loading message
+        loadingDiv.remove();
+        
+        if (data.error) {
+            addMessage('system', `Error: ${data.error}`);
+            // If there was an error, fall back to initial prompt
+            sendInitialPrompt();
+            return;
+        }
+        
+        if (!data.messages || data.messages.length === 0) {
+            // No messages found, send initial prompt
+            sendInitialPrompt();
+            return;
+        }
+        
+        // Reset conversation history
+        conversationHistory = [];
+        
+        // Check if the last message is from the user and needs a response
+        let userHasLastMessage = false;
+        let lastMessageIdx = data.messages.length - 1;
+        
+        if (data.messages[lastMessageIdx] && data.messages[lastMessageIdx].role === 'user') {
+            userHasLastMessage = true;
+        }
+        
+        // Add messages to the chat (excluding any with initial prompts)
+        data.messages.forEach(msg => {
+            // Skip messages that are initial prompts
+            const isInitialPrompt = msg.role === 'user' && 
+                (msg.content.includes('I\'d like to learn about') || 
+                 msg.content.includes('I\'d like to practice') || 
+                 msg.content.includes('I\'d like to test') || 
+                 msg.content.includes('I\'d like to review'));
+            
+            if (!isInitialPrompt) {
+                // Add to conversation history
+                conversationHistory.push({
+                    role: msg.role,
+                    content: msg.content
+                });
+                
+                // Don't show system messages and context tags in the UI
+                if (msg.role !== 'system' && !msg.content.includes('[CONTEXT:')) {
+                    const displayContent = msg.content.split('\n\n[CONTEXT:')[0]; // Remove context tags
+                    addMessage(msg.role, displayContent);
+                }
+            }
+        });
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // If the last message was from the user, get AI response
+        if (userHasLastMessage) {
+            // Send the last user message to get a response
+            const lastUserMessage = data.messages[lastMessageIdx].content;
+            getAIResponseToExistingMessage(lastUserMessage);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading messages:', error);
+        loadingDiv.remove();
+        addMessage('system', 'Failed to load previous messages. Starting new conversation.');
+        sendInitialPrompt();
+    });
+}
+
+// Function to get AI response to an existing user message
+function getAIResponseToExistingMessage(userMessage) {
+    // Create message div for assistant
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', 'assistant');
+    chatMessages.appendChild(messageDiv);
+    
+    // Display "thinking..." message initially
+    messageDiv.innerHTML = "<em>Thinking...</em>";
+    
+    // Add unique request ID to track this specific request
+    const requestId = Date.now().toString();
+    
+    // Call the API to get a response to the existing message
+    fetch('/student/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            question: userMessage,
+            topic_code: topicCode,
+            mode: currentMode,
+            stream: true,
+            request_id: requestId,
+            session_id: sessionDBId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            messageDiv.remove();
+            addMessage('system', `Error: ${data.error}`);
+            return;
+        }
+        
+        // Set up streaming with the unique request ID
+        let fullResponse = '';
+        
+        // Connect to the SSE endpoint with request ID
+        const source = new EventSource(`/student/chat?request_id=${requestId}`);
+        
+        source.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.connected) {
+                    // Just a connection confirmation, ignore
+                    return;
+                }
+                
+                if (data.done) {
+                    source.close();
+                    
+                    // If we have full_response, use it
+                    if (data.full_response) {
+                        fullResponse = data.full_response;
+                        messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    }
+                    
+                    // Add the assistant's response to conversation history
+                    conversationHistory.push({
+                        role: "assistant",
+                        content: fullResponse
+                    });
+                    
+                    return;
+                }
+                
+                if (data.text) {
+                    fullResponse += data.text;
+                    messageDiv.innerHTML = parseMarkdown(fullResponse);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error parsing SSE message:', error, event.data);
+            }
+        };
+        
+        source.onerror = function(error) {
+            console.error('EventSource error:', error);
+            source.close();
+            
+            if (fullResponse === '') {
+                messageDiv.remove();
+                addMessage('system', 'Error: Failed to get a response. Please try again.');
+            }
+        };
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        messageDiv.remove();
+        addMessage('system', `Error: ${error.message}`);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+}
 
 // Mode selection
 modeBtns.forEach(btn => {
@@ -54,6 +254,45 @@ rateBtn.addEventListener('click', () => {
 examBtn.addEventListener('click', () => {
     examModal.style.display = 'block';
 });
+
+// Refresh button to clear chat
+refreshBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear the chat and start a new conversation?')) {
+        // Clear the database entries first
+        clearChatHistory();
+        // Then start a new conversation
+        setTimeout(() => {
+            sendInitialPrompt();
+        }, 500);
+    }
+});
+
+// Function to clear chat history from the database
+function clearChatHistory() {
+    if (!sessionDBId) return;
+    
+    fetch('/student/clear-chat-history', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            session_id: sessionDBId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error clearing chat history:', data.error);
+            addMessage('system', `Error clearing chat history: ${data.error}`);
+        } else {
+            console.log('Chat history cleared successfully');
+        }
+    })
+    .catch(error => {
+        console.error('Error clearing chat history:', error);
+    });
+}
 
 closeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -199,11 +438,17 @@ function sendInitialPrompt() {
     // Create context tag for the initial message
     const initialPrompt = create_initial_prompt_with_context(topicCode, topicTitle, currentMode, timeString);
     
-    // Add the initial prompt with context to conversation history
+    // Add the initial prompt with context to conversation history (but don't display it in the UI)
     conversationHistory.push({
         role: "user",
         content: initialPrompt
     });
+    
+    // Display loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.classList.add('message', 'system');
+    loadingDiv.innerHTML = "Loading your AI tutor...";
+    chatMessages.appendChild(loadingDiv);
     
     // Create message div for assistant
     const messageDiv = document.createElement('div');
@@ -237,10 +482,14 @@ function sendInitialPrompt() {
     })
     .then(data => {
         if (data.error) {
+            loadingDiv.remove();
             messageDiv.remove();
             addMessage('system', `Error: ${data.error}`);
             return;
         }
+        
+        // Remove the loading message
+        loadingDiv.remove();
         
         // Set up streaming with the unique request ID
         let fullResponse = '';

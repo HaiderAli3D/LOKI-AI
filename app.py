@@ -2,10 +2,6 @@
 """
 OCR A-Level Computer Science AI Tutor Web Interface
 
-This web interface extends the command-line application to provide:
-1. Admin interface for managing learning resources and files
-2. User interface for students to interact with the AI tutor
-3. Behind-the-scenes file processing and knowledge base management
 """
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, send_from_directory, Response
@@ -204,7 +200,7 @@ def create_system_prompt():
     
     RESPONSE LENGTH:
     - Keep responses brief and focused
-    - Aim for 300-500 words per response
+    - Aim for 100-300 words per response
     - Prioritize clarity and precision over exhaustive detail
     - Use bullet points instead of paragraphs when possible
     
@@ -217,7 +213,7 @@ def create_system_prompt():
     You have multiple tutoring modes that you can be in:
     TUTORING MODES:
     - EXPLORE: Introduce and explain new concepts with applied examples and analogies
-    - PRACTICE: Provide brief targeted exercises with immediate feedback and hints
+    - PRACTICE: Provide brief targeted exercises with immediate feedback and hints, give one question at a time and expect fast paced back and forth with student
     - CODE: Guide through programming problems with scaffolded assistance - teach required programing techniques and functions for the OCR A level exam.
     - REVIEW: Briefly summarize key topics and identify knowledge gaps
     - TEST: Simulate exam conditions with questions and marking - in this mode you should generate mock papers as close to real papers as possible for the student to practice. These papers should have quetions with a set number of marks, and grade boundaries.
@@ -261,6 +257,7 @@ def create_system_prompt():
     You stay strictly close to the specification and will only respond to computer science related requests. You are to refuse any requests unrelated to A level computer science.
     Never accept unrelated requests that will not help the student achieve a high grade in computer science. Do not accept requests to do tasks for other subjects, do not play games.
 
+    Give short brief responses, acourage the user to ask more questions perhapse hinting at further concepts.
     
     Use markdown format to make your responses clear for the user.
 
@@ -352,9 +349,11 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         return f"""
         You are now teaching the user about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). 
         
+        The goal of this mode is to teach the user the topic as requried for the OCR A level computer science specification. You are to encourage the user to explore by them selves and ask questions. Give short responses as to not overwhelm the student.
+        
         Please provide a comprehensive explanation that:
         1. Starts with a clear definition of the key concepts
-        2. Explains the principles in detail, with a logical progression from basic to advanced, use metaphores to help with this
+        2. Explains the principles, with a logical progression from basic to advanced, use metaphores to help with this
         3. Includes practical examples that illustrate the concepts
         4. Relates the topic to the OCR A-Level specification requirements 
         5. Highlights any common misconceptions or areas students typically find challenging
@@ -365,13 +364,15 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         return f"""
         You are now helpting the user practice {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
         
-        Please provide a set of practice questions that:
-        1. Start with 1-2 basic knowledge or factual recall questions
-        2. Follow with 2-3 application questions of medium difficulty
-        3. Include 1-2 higher-level analysis/evaluation questions (similar to exam questions)
+        The goal of this mode is to have quick back and forth questions and exploration between you adn the user. Give short questions that enxourage short responses, but allow for the user to ask further questions relating to the topic and explore themselves.
+        
+        Please provide practice questions such as:
+        1. basic knowledge or factual recall questions
+        2. application questions of medium difficulty
+        3. higher-level analysis/evaluation questions (similar to exam questions)
         4. Match the style and format of OCR exam questions
         
-        Wait for my answer to each question before proceeding to the next one. After each answer, provide detailed feedback explaining the correct approach and marking criteria.
+        Wait for my answer to each question before proceeding to the next one. After each answer, provide feedback explaining the correct approach and marking criteria.
         """
     elif mode == "code":
         return f"""
@@ -382,6 +383,7 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         2. A step-by-step explanation of the code, explaining each section clearly
         3. Common coding patterns and techniques related to this topic
         4. Practical exercises I can try, with gradually increasing complexity
+        Don't provide these all at once, instead focus on back and forth with the use giving them increasingly challenging problems or dialing back the dificulty if they're struggling.
         
         Use pseudocode and/or Python for the examples, matching the style used in OCR exam questions.
         """
@@ -396,19 +398,23 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         4. Indicates connections with other parts of the specification
         5. Includes quick recall questions to test my understanding
         
+        Give brief responses in this mode.
+        
         Structure this as a revision guide with clear sections and bullet points where appropriate.
         """
     elif mode == "test":
         return f"""
         I'd like to test my knowledge of {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
         
-        Please create a mini-assessment with:
+        Please create a practice assessment with:
         1. 4-6 exam-style questions covering different aspects of this topic
         2. A mix of question types including short answer and extended response
         3. Questions that match the OCR examination style and format
-        4. Clear marking scheme and grade boundaries
+        4. Clear grade boundaries
         
-        Present all questions at once, then wait for my complete submission before providing feedback and a grade.
+        When the user answers queustions mark it like an OCR A level examiner, pressent the mark scheme to the user and explain the mark they got. 
+        
+        Present all questions at once, then wait for my submission before providing feedback and a grade.
         """
     else:
         return f"I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). Please help me understand this topic in detail."
@@ -1054,6 +1060,77 @@ def save_response():
         # Save response to database
         database.add_message(session_id, "assistant", response)
         return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Session not found or unauthorized'}), 403
+
+@app.route('/student/get-recent-messages', methods=['POST'])
+@login_required
+def get_recent_messages():
+    """Get the last 10 messages for a given session."""
+    data = request.json
+    session_id = data.get('session_id')
+    user_id = session.get('user_id')
+    
+    if not session_id:
+        return jsonify({'error': 'Missing session_id parameter'}), 400
+    
+    # Get database
+    database = get_db()
+    
+    # Verify this session belongs to the current user
+    if database.verify_session_ownership(session_id, user_id):
+        # Get recent messages (limited to last 10)
+        messages = database.get_session_messages(session_id)
+        
+        # If there are more than 10 messages, get only the last 10
+        if len(messages) > 10:
+            messages = messages[-10:]
+        
+        # Format messages for frontend
+        formatted_messages = []
+        for _, role, content in messages:
+            formatted_messages.append({
+                "role": role,
+                "content": content
+            })
+        
+        return jsonify({
+            'success': True,
+            'messages': formatted_messages
+        })
+    else:
+        return jsonify({'error': 'Session not found or unauthorized'}), 403
+
+@app.route('/student/clear-chat-history', methods=['POST'])
+@login_required
+def clear_chat_history():
+    """Clear all messages for a given session and prepare to start fresh."""
+    data = request.json
+    session_id = data.get('session_id')
+    user_id = session.get('user_id')
+    
+    if not session_id:
+        return jsonify({'error': 'Missing session_id parameter'}), 400
+    
+    # Get database
+    database = get_db()
+    
+    # Verify this session belongs to the current user
+    if database.verify_session_ownership(session_id, user_id):
+        try:
+            # Delete all messages for this session
+            conn = sqlite3.connect('ocr_cs_tutor.db')
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM conversation_history WHERE session_id = ?", (session_id,))
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Chat history cleared successfully'
+            })
+        except Exception as e:
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
     else:
         return jsonify({'error': 'Session not found or unauthorized'}), 403
 

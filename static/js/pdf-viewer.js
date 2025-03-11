@@ -101,13 +101,50 @@ function initPdfViewer() {
         }
     });
     
-    // PDF sidebar is always visible now
+    // Set up the dock toggle button for PDF sidebar
     const pdfSidebar = document.getElementById('pdf-sidebar');
     const mainContent = document.querySelector('.main-content');
+    const pageContainer = document.querySelector('.page-with-pdf-and-chat');
+    const dockToggleBtn = document.getElementById('pdf-dock-toggle');
     
-    // Ensure PDF sidebar is visible and main content is not expanded
-    pdfSidebar.classList.remove('collapsed');
-    mainContent.classList.remove('expanded');
+    // Initialize sidebar state (default is docked)
+    // Only change the state if explicitly set to false in localStorage
+    const savedState = localStorage.getItem('pdf-sidebar-docked');
+    
+    // If the user has previously set a preference, use that
+    if (savedState === 'false') {
+        pdfSidebar.classList.remove('docked');
+        pageContainer.classList.remove('notes-docked');
+    } else {
+        // Otherwise ensure the docked state is applied
+        pdfSidebar.classList.add('docked');
+        pageContainer.classList.add('notes-docked');
+        localStorage.setItem('pdf-sidebar-docked', 'true');
+    }
+    
+    // Set up dock toggle button
+    dockToggleBtn.addEventListener('click', () => {
+        const isCurrentlyDocked = pdfSidebar.classList.contains('docked');
+        
+        if (isCurrentlyDocked) {
+            // Expand the sidebar
+            pdfSidebar.classList.remove('docked');
+            pageContainer.classList.remove('notes-docked');
+            localStorage.setItem('pdf-sidebar-docked', 'false');
+        } else {
+            // Dock the sidebar
+            pdfSidebar.classList.add('docked');
+            pageContainer.classList.add('notes-docked');
+            localStorage.setItem('pdf-sidebar-docked', 'true');
+        }
+        
+        // Re-render the current page after a slight delay to allow the layout to update
+        setTimeout(() => {
+            if (pdfDoc) {
+                renderPage(currentPage);
+            }
+        }, 300);
+    });
     
     // Load PDF based on current topic
     loadPdfForTopic(topicCode);
