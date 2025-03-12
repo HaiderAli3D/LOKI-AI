@@ -345,9 +345,17 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
     """Create an initial prompt based on selected component, topic, subtopic, and learning mode."""
     component_title = OCR_CS_CURRICULUM[component]['title']
     
+    # Check if this is a sub-topic or a main topic
+    is_subtopic = detailed_topic != main_topic and detailed_topic is not None
+    
+    # Create appropriate context info
+    topic_info = detailed_topic
+    if is_subtopic:
+        topic_info = f"sub-topic {detailed_topic} within the main topic {main_topic}"
+    
     if mode == "explore":
         return f"""
-        You are now teaching the user about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}). 
+        You are now teaching the user about {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}). 
         
         The goal of this mode is to teach the user the topic as requried for the OCR A level computer science specification. You are to encourage the user to explore by them selves and ask questions. Give short responses as to not overwhelm the student.
         
@@ -362,7 +370,7 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         """
     elif mode == "practice":
         return f"""
-        You are now helpting the user practice {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
+        You are now helping the user practice {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}).
         
         The goal of this mode is to have quick back and forth questions and exploration between you adn the user. Give short questions that enxourage short responses, but allow for the user to ask further questions relating to the topic and explore themselves.
         
@@ -376,7 +384,7 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         """
     elif mode == "code":
         return f"""
-        I'd like to learn about {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}) through practical coding examples.
+        I'd like to learn about {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}) through practical coding examples.
         
         Please provide:
         1. Code examples that demonstrate the key programming concepts related to this topic
@@ -389,7 +397,7 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         """
     elif mode == "review":
         return f"""
-        I'd like to review {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
+        I'd like to review {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}).
         
         Please create a comprehensive revision summary that:
         1. Outlines all the key points and concepts that I need to know
@@ -404,7 +412,7 @@ def create_initial_prompt(component, main_topic, detailed_topic, mode):
         """
     elif mode == "test":
         return f"""
-        I'd like to test my knowledge of {detailed_topic} from the OCR A-Level Computer Science curriculum ({component_title}).
+        I'd like to test my knowledge of {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}).
         
         Please create a practice assessment with:
         1. 4-6 exam-style questions covering different aspects of this topic
@@ -660,14 +668,22 @@ def student_topic(component, topic_code):
     """Topic learning page."""
     # Find the topic title
     topic_title = None
-    for topic in OCR_CS_CURRICULUM[component]['topics']:
-        if topic.startswith(topic_code):
-            topic_title = topic
-            break
     
+    # First check if it's in the main OCR curriculum
+    if component in OCR_CS_CURRICULUM:
+        for topic in OCR_CS_CURRICULUM[component]['topics']:
+            if topic.startswith(topic_code):
+                topic_title = topic
+                break
+
     # If it's a detailed topic, get the title from detailed topics
     if not topic_title and topic_code in OCR_CS_DETAILED_TOPICS:
-        topic_title = OCR_CS_DETAILED_TOPICS[topic_code]['title']
+        topic_title = topic_code + " " + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+    
+    # If we still don't have a title, just use the topic code itself
+    # This ensures we always have something to display
+    if not topic_title:
+        topic_title = f"Topic {topic_code}"
     
     return render_template('student/topic.html', 
                           component=component, 
@@ -717,13 +733,35 @@ def student_initial_prompt():
                     if topic.startswith(parent_code):
                         component = comp
                         main_topic = topic
+                        parent_topic_title = topic
                         detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
                         break
                 if component:
                     break
         
-        if not component or not main_topic:
-            return jsonify({'error': 'Topic not found'})
+        # If we still can't find the topic, create default values to prevent errors
+        # Rather than showing an error, we'll use what we know to create a sensible default
+        if not component:
+            # Default to computer_systems if we can't determine the component
+            component = 'computer_systems'
+        
+        if not main_topic:
+            # Check if it's a subtopic by counting dots
+            dots = topic_code.count('.')
+            if dots >= 2:  # It's likely a subtopic (e.g., 1.1.1)
+                # Extract parent topic code (e.g., 1.1)
+                parent_code = '.'.join(topic_code.split('.')[:2])
+                main_topic = f"Topic {parent_code}"
+                
+                # If we have a title in detailed topics, use it
+                if topic_code in OCR_CS_DETAILED_TOPICS:
+                    detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+                else:
+                    detailed_topic = f"Topic {topic_code}"
+            else:
+                # It's a main topic
+                main_topic = f"Topic {topic_code}"
+                detailed_topic = main_topic
         
         # Create initial prompt
         initial_prompt = create_initial_prompt(component, main_topic, detailed_topic, mode)

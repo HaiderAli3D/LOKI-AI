@@ -375,21 +375,25 @@ class ResourceManager:
         """Retrieve knowledge base content for a specific topic."""
         cursor = self.conn.cursor()
         
-        # Get direct matches
-        cursor.execute(
-            "SELECT content FROM knowledge_base WHERE topic_code = ?",
-            (topic_code,)
-        )
-        results = cursor.fetchall()
+        # Determine if this is a sub-topic and get its parent code
+        is_subtopic = len(topic_code.split('.')) > 2
+        parent_topic = '.'.join(topic_code.split('.')[:2]) if is_subtopic else topic_code
         
-        # If topic code is like 1.1.2, also get content for parent topic 1.1
-        if len(topic_code.split('.')) > 2:
-            parent_topic = '.'.join(topic_code.split('.')[:2])
+        # For sub-topics, get the parent topic content first for better context
+        results = []
+        if is_subtopic:
             cursor.execute(
                 "SELECT content FROM knowledge_base WHERE topic_code = ?",
                 (parent_topic,)
             )
             results.extend(cursor.fetchall())
+        
+        # Then get direct matches for the specific topic
+        cursor.execute(
+            "SELECT content FROM knowledge_base WHERE topic_code = ?",
+            (topic_code,)
+        )
+        results.extend(cursor.fetchall())
         
         # Also get general knowledge
         cursor.execute(

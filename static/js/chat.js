@@ -406,6 +406,10 @@ function create_initial_prompt_with_context(topic_code, topic_title, mode, timeS
     // Base message based on the current mode
     let basePrompt = "";
     
+    // Check if this is a sub-topic by counting the dots in the topic code
+    let isSubTopic = topic_code.split('.').length > 2;
+    let parentTopicCode = isSubTopic ? topic_code.split('.').slice(0, 2).join('.') : topic_code;
+    
     if (mode === "explore") {
         basePrompt = `I'd like to learn about ${topic_title} from the OCR A-Level Computer Science curriculum. Please provide a comprehensive explanation.`;
     } else if (mode === "practice") {
