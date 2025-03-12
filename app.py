@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Model Option:
+# Best model but expensive: "claude-3-7-sonnet-20250219"
+# Worse model but cheap: "claude-3-5-haiku-20241022"
+AI_MODEL = "claude-3-5-haiku-20241022"
+
 # Import existing classes from the command-line application
 from Claude_CS_Test import ResourceManager, OCRCSDatabase, OCR_CS_CURRICULUM, OCR_CS_DETAILED_TOPICS, LEARNING_MODES
 
@@ -359,7 +364,7 @@ def get_claude_response(prompt, conversation_history=None, topic_code=None, stre
         if stream:
             # Return the stream directly for streaming response
             return client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model=AI_MODEL,
                 max_tokens=2048,
                 temperature=0.7,
                 system=create_system_prompt(),
@@ -369,7 +374,7 @@ def get_claude_response(prompt, conversation_history=None, topic_code=None, stre
         else:
             # Non-streaming response
             response = client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model=AI_MODEL,
                 max_tokens=2048,
                 temperature=0.7,
                 system=create_system_prompt(),
@@ -1316,7 +1321,7 @@ def generate_global_chat_stream(question, conversation_history):
     
     # Create a message and get the streaming response
     response_stream = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model=AI_MODEL,
         max_tokens=1024,
         temperature=0.7,
         system=general_system_prompt,
@@ -1400,14 +1405,21 @@ def global_chat():
             return jsonify({'error': 'ANTHROPIC_API_KEY is not set. Please set it in the environment variables.'}), 500
         
         # Create a system prompt specifically for general CS questions
-        general_system_prompt = """
-        You are an expert OCR A-Level Computer Science tutor. Answer any computer science questions concisely and accurately.
-        Focus on OCR A-Level curriculum topics, but be prepared to answer general computer science questions too.
-        Keep responses brief (200-300 words) and use bullet points where appropriate.
-        Include code examples only when necessary and keep them short.
-        End with 1-2 key takeaways.
-        """
-        
+        general_system_prompt ="""
+You are an expert OCR A-Level Computer Science tutor. Your role is to answer any computer science questions concisely and accurately, focusing on the OCR A-Level curriculum but also addressing general computer science queries if needed.
+
+**Response Guidelines**:
+- Keep responses brief (100–300 words) and, where possible, use bullet points.
+- Include short code examples only when absolutely necessary.
+- End every response with 1–2 key takeaways that help reinforce understanding.
+- Integrate Pólya’s “How to Solve It” principles in your explanations:
+  - **Understanding the Problem**: Ensure the student fully grasps the question or scenario.
+  - **Devising a Plan**: Encourage brainstorming and propose strategies or potential methods.
+  - **Carrying Out the Plan**: Demonstrate clear reasoning and, if relevant, short code snippets.
+  - **Looking Back**: Prompt reflection on the solution, emphasizing possible improvements or generalizations.
+
+Keep your tone supportive and succinct. When a student asks for deeper insights, respond with short, targeted guidance—ask clarifying questions to draw out their reasoning rather than simply providing the answer. Encourage them to make connections with other OCR curriculum areas or prior knowledge, helping them cultivate strong problem-solving skills and a holistic view of computer science.
+"""        
         # Get response from Claude
         client = get_anthropic_client()
         
@@ -1440,7 +1452,7 @@ def global_chat():
             def generate():
                 # Create a message and get the streaming response
                 response_stream = client.messages.create(
-                    model="claude-3-5-haiku-20241022",
+                    model=AI_MODEL,
                     max_tokens=1024,
                     temperature=0.7,
                     system=general_system_prompt,
@@ -1467,7 +1479,7 @@ def global_chat():
             # Non-streaming response (original functionality)
             # Create a message and get the response
             response = client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model=AI_MODEL,
                 max_tokens=1024,
                 temperature=0.7,
                 system=general_system_prompt,
