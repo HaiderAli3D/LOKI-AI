@@ -766,7 +766,7 @@ header p {
     border-radius: 16px;
     box-shadow: var(--box-shadow);
     overflow: hidden;
-    height: calc(100vh - 200px);
+    height: calc(250vh - 200px);
     min-height: 500px;
     max-height: 120vh;
 }

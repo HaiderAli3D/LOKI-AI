@@ -20,6 +20,42 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # Import existing classes from the command-line application
 from Claude_CS_Test import ResourceManager, OCRCSDatabase, OCR_CS_CURRICULUM, OCR_CS_DETAILED_TOPICS, LEARNING_MODES
 
+# Create a more accessible topic lookup dictionary
+OCR_CS_TOPIC_LOOKUP = {}
+
+# Populate the lookup dictionary with main topics
+for component_key, component_data in OCR_CS_CURRICULUM.items():
+    for topic in component_data['topics']:
+        # Extract topic code (e.g., "1.2" from "1.2 Software and software development")
+        topic_parts = topic.split(' ', 1)
+        if len(topic_parts) == 2:
+            topic_code = topic_parts[0]
+            topic_name = topic_parts[1]
+            OCR_CS_TOPIC_LOOKUP[topic_code] = {
+                'title': topic_name,
+                'full_title': topic,
+                'component': component_key
+            }
+
+# Add subtopics to the lookup dictionary
+for main_topic_code, main_topic_data in OCR_CS_DETAILED_TOPICS.items():
+    for subtopic in main_topic_data['subtopics']:
+        # Extract subtopic code (e.g., "1.2.4" from "1.2.4 Types of Programming Language")
+        subtopic_parts = subtopic.split(' ', 1)
+        if len(subtopic_parts) == 2:
+            subtopic_code = subtopic_parts[0]
+            subtopic_name = subtopic_parts[1]
+            # Find component for this subtopic (using the parent topic's component)
+            component = OCR_CS_TOPIC_LOOKUP.get(main_topic_code, {}).get('component')
+            
+            OCR_CS_TOPIC_LOOKUP[subtopic_code] = {
+                'title': subtopic_name,
+                'full_title': subtopic,
+                'parent_code': main_topic_code,
+                'parent_title': OCR_CS_DETAILED_TOPICS[main_topic_code]['title'],
+                'component': component
+            }
+
 # Initialize Flask application
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "ocr_cs_tutor_secret_key")  # Change in production
@@ -666,24 +702,35 @@ def student_dashboard():
 @login_required
 def student_topic(component, topic_code):
     """Topic learning page."""
-    # Find the topic title
-    topic_title = None
+    # Use the topic lookup dictionary to get the title
+    topic_info = OCR_CS_TOPIC_LOOKUP.get(topic_code)
     
-    # First check if it's in the main OCR curriculum
-    if component in OCR_CS_CURRICULUM:
-        for topic in OCR_CS_CURRICULUM[component]['topics']:
-            if topic.startswith(topic_code):
-                topic_title = topic
-                break
-
-    # If it's a detailed topic, get the title from detailed topics
-    if not topic_title and topic_code in OCR_CS_DETAILED_TOPICS:
-        topic_title = topic_code + " " + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+    if topic_info:
+        # We have info in our lookup dictionary
+        topic_title = topic_info['full_title']
+    else:
+        # If not in our lookup, fallback to searching in curriculum
+        topic_title = None
+        
+        # First check if it's in the main OCR curriculum
+        if component in OCR_CS_CURRICULUM:
+            for topic in OCR_CS_CURRICULUM[component]['topics']:
+                if topic.startswith(topic_code):
+                    topic_title = topic
+                    break
     
-    # If we still don't have a title, just use the topic code itself
-    # This ensures we always have something to display
-    if not topic_title:
-        topic_title = f"Topic {topic_code}"
+        # If it's a detailed topic, get the title from detailed topics
+        if not topic_title and topic_code in OCR_CS_DETAILED_TOPICS:
+            topic_title = f"{topic_code} {OCR_CS_DETAILED_TOPICS[topic_code]['title']}"
+        
+        # If we still don't have a title, just use the topic code itself
+        if not topic_title:
+            topic_title = f"Topic {topic_code}"
+    
+    # Clear any existing session data for this topic
+    # This forces a fresh chat context whenever navigating to a topic
+    if 'db_session_id' in session:
+        session.pop('db_session_id')
     
     return render_template('student/topic.html', 
                           component=component, 
@@ -708,60 +755,77 @@ def student_initial_prompt():
         request_id = data.get('request_id')
         user_id = session.get('user_id')
         
-        # Find the component and topic
-        component = None
-        main_topic = None
-        detailed_topic = None
+        # Use our lookup dictionary to get topic information
+        topic_info = OCR_CS_TOPIC_LOOKUP.get(topic_code)
         
-        # Search for the topic in the curriculum
-        for comp, info in OCR_CS_CURRICULUM.items():
-            for topic in info['topics']:
-                if topic.startswith(topic_code):
-                    component = comp
-                    main_topic = topic
-                    detailed_topic = topic
-                    break
-            if component:
-                break
-        
-        # If it's a detailed topic, get it from detailed topics
-        if not component and topic_code in OCR_CS_DETAILED_TOPICS:
-            # Find the parent topic
-            parent_code = '.'.join(topic_code.split('.')[:2])
+        if topic_info:
+            # We have info in our lookup dictionary
+            if 'parent_code' in topic_info:
+                # This is a subtopic
+                parent_code = topic_info['parent_code']
+                parent_info = OCR_CS_TOPIC_LOOKUP.get(parent_code)
+                
+                component = topic_info['component']
+                main_topic = parent_info['full_title'] if parent_info else f"Topic {parent_code}"
+                detailed_topic = topic_info['full_title']
+            else:
+                # This is a main topic
+                component = topic_info['component']
+                main_topic = topic_info['full_title']
+                detailed_topic = main_topic
+        else:
+            # Fallback to the old method if not in lookup
+            component = None
+            main_topic = None
+            detailed_topic = None
+            
+            # Search for the topic in the curriculum
             for comp, info in OCR_CS_CURRICULUM.items():
                 for topic in info['topics']:
-                    if topic.startswith(parent_code):
+                    if topic.startswith(topic_code):
                         component = comp
                         main_topic = topic
-                        parent_topic_title = topic
-                        detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+                        detailed_topic = topic
                         break
                 if component:
                     break
-        
-        # If we still can't find the topic, create default values to prevent errors
-        # Rather than showing an error, we'll use what we know to create a sensible default
-        if not component:
-            # Default to computer_systems if we can't determine the component
-            component = 'computer_systems'
-        
-        if not main_topic:
-            # Check if it's a subtopic by counting dots
-            dots = topic_code.count('.')
-            if dots >= 2:  # It's likely a subtopic (e.g., 1.1.1)
-                # Extract parent topic code (e.g., 1.1)
+            
+            # If it's a detailed topic, get it from detailed topics
+            if not component and topic_code in OCR_CS_DETAILED_TOPICS:
+                # Find the parent topic
                 parent_code = '.'.join(topic_code.split('.')[:2])
-                main_topic = f"Topic {parent_code}"
-                
-                # If we have a title in detailed topics, use it
-                if topic_code in OCR_CS_DETAILED_TOPICS:
-                    detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+                for comp, info in OCR_CS_CURRICULUM.items():
+                    for topic in info['topics']:
+                        if topic.startswith(parent_code):
+                            component = comp
+                            main_topic = topic
+                            detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+                            break
+                    if component:
+                        break
+            
+            # If we still can't find the topic, create default values to prevent errors
+            if not component:
+                # Default to computer_systems if we can't determine the component
+                component = 'computer_systems'
+            
+            if not main_topic:
+                # Check if it's a subtopic by counting dots
+                dots = topic_code.count('.')
+                if dots >= 2:  # It's likely a subtopic (e.g., 1.1.1)
+                    # Extract parent topic code (e.g., 1.1)
+                    parent_code = '.'.join(topic_code.split('.')[:2])
+                    main_topic = f"Topic {parent_code}"
+                    
+                    # If we have a title in detailed topics, use it
+                    if topic_code in OCR_CS_DETAILED_TOPICS:
+                        detailed_topic = topic_code + ' ' + OCR_CS_DETAILED_TOPICS[topic_code]['title']
+                    else:
+                        detailed_topic = f"Topic {topic_code}"
                 else:
-                    detailed_topic = f"Topic {topic_code}"
-            else:
-                # It's a main topic
-                main_topic = f"Topic {topic_code}"
-                detailed_topic = main_topic
+                    # It's a main topic
+                    main_topic = f"Topic {topic_code}"
+                    detailed_topic = main_topic
         
         # Create initial prompt
         initial_prompt = create_initial_prompt(component, main_topic, detailed_topic, mode)

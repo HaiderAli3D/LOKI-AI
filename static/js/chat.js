@@ -16,13 +16,9 @@ const examForm = document.getElementById('exam-form');
 
 // Initialize chat when page loads
 window.addEventListener('DOMContentLoaded', () => {
-    // Try to load recent messages first
-    if (sessionDBId) {
-        loadRecentMessages();
-    } else {
-        // If no session ID, get initial response based on topic and mode
-        sendInitialPrompt();
-    }
+    // Always start with a fresh chat when loading a topic page
+    // This ensures the AI is aware of the current topic
+    sendInitialPrompt();
 });
 
 // Function to load recent messages
