@@ -26,6 +26,10 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
     Returns:
         str: Path to the generated PDF relative to 'static' directory, or None if compilation failed
     """
+    # Print verbose debugging information
+    print(f"Starting LaTeX compilation for user {user_id}, topic {topic_code}")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Platform: {platform.system()} {platform.release()}")
     # Sanitize inputs for filenames
     user_id_str = str(user_id)
     topic_code_str = topic_code.replace(".", "_").replace(" ", "")
@@ -50,9 +54,24 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
     tex_file_path = temp_dir / "temp.tex"
     
     try:
-        # Write LaTeX content to file
+        # Process LaTeX content to handle missing images
+        processed_content = latex_content
+        
+        # Check for image includes that might be missing
+        if "\\includegraphics" in processed_content and "OCR_logo.jpg" in processed_content:
+            print("Found image reference to OCR_logo.jpg - replacing with workaround")
+            
+            # Option 1: Comment out the problematic line
+            processed_content = processed_content.replace(
+                "\\includegraphics[width=0.5\\textwidth]{OCR_logo.jpg}",
+                "% Image removed: OCR_logo.jpg not available\n\\vspace{2cm}"
+            )
+            
+            # Option 2: If there are other image references, we could use a more general regex approach here
+        
+        # Write processed LaTeX content to file
         with tex_file_path.open("w", encoding="utf-8") as tex_file:
-            tex_file.write(latex_content)
+            tex_file.write(processed_content)
         
         # Compile LaTeX to PDF
         compile_command = [
@@ -78,7 +97,12 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
         
         if result.returncode != 0:
             print(f"LaTeX compilation error (first pass): {result.stderr}")
-            # Continue anyway, sometimes the second pass resolves issues
+            # Check if the error is just the MiKTeX update warning
+            if "So far, you have not checked for MiKTeX updates" in result.stderr and not "Fatal error" in result.stderr:
+                print("Ignoring MiKTeX update warning and continuing compilation")
+            else:
+                # Continue anyway, sometimes the second pass resolves issues
+                print("Continuing to second pass despite errors")
         
         # Second run for references
         result = subprocess.run(
@@ -90,6 +114,9 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
         
         if result.returncode != 0:
             print(f"LaTeX compilation error (second pass): {result.stderr}")
+            # Check if the error is just the MiKTeX update warning
+            if "So far, you have not checked for MiKTeX updates" in result.stderr and not "Fatal error" in result.stderr:
+                print("Ignoring MiKTeX update warning")
         
         # Return to original directory
         os.chdir(original_dir)
@@ -98,7 +125,12 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
         compiled_pdf_path = temp_dir / "temp.pdf"
         if not compiled_pdf_path.exists():
             print("No PDF was produced")
-            return None
+            # Try to run a direct check with the OS to ensure the file really doesn't exist
+            # Sometimes file system operations can be asynchronous
+            if os.path.isfile(str(compiled_pdf_path)):
+                print("PDF found with direct OS check")
+            else:
+                return None
         
         # Move PDF to final location
         shutil.copy(str(compiled_pdf_path), str(final_pdf_path))

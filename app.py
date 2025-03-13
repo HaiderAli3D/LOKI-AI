@@ -24,7 +24,7 @@ import pyrebase
 # Model Option:
 # Best model but expensive: "claude-3-7-sonnet-20250219"
 # Worse model but cheap: "claude-3-5-haiku-20241022"
-AI_MODEL = "claude-3-5-haiku-20241022"
+AI_MODEL = "claude-3-7-sonnet-20250219"
 
 # Import existing classes from the command-line application
 from Claude_CS_Test import ResourceManager, OCRCSDatabase, OCR_CS_CURRICULUM, OCR_CS_DETAILED_TOPICS, LEARNING_MODES
@@ -629,12 +629,17 @@ Aim for brief, focused responses suitable for last-minute revision. Ensure the s
         return f"""
 You are now testing the user’s knowledge of {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}).
 
-Please create a practice assessment using LaTeX that:
+Please create a practice assessment as a PDF using LaTeX that:
 1. Includes 4–6 exam-style questions covering various aspects of the topic.
 2. Mixes short-answer and extended-response questions, matching OCR’s style and format.
-3. Clearly states grade boundaries (e.g., A/B/C).
+3. Clearly states grade boundaries (e.g., A*/A/B/C/D).
 4. Presents all questions at once, then waits for the user’s answers before providing any marking or feedback.
 5. The assesment should have 30-45 marks and a reasonable time limit stated with it.
+6. Ensure the first page of the LaTeX PDF is identical to that of one from a real OCR A level computer science exam. It should have no quetsions on it, a field for name, candidate and center codes, date. It should have the title of the paper on it, marks on the paper, genral guidance and time given for the paper.
+7. When writing the paper YOU MUST NOT respond with anything but the LaTeX code for the exam. Only provide the LaTeX code and nothing else. Provide no headers or indicators of what the code is, just provide the code.
+8. Add lines or leave space for the student to answer under each question
+
+note: dont use images in the latex code
 
 **Assessment Process**:
 - After you present all questions, the user will submit their answers.
