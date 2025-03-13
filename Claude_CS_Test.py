@@ -516,37 +516,61 @@ class OCRCSDatabase:
         )
         self.conn.commit()
     
-    def update_topic_progress(self, topic_code, topic_title, proficiency, notes=None):
+    def update_topic_progress(self, topic_code, topic_title, proficiency, notes=None, user_id=None):
         """Update the student's progress on a specific topic."""
         cursor = self.conn.cursor()
-        # Check if the topic exists
-        cursor.execute(
-            "SELECT id FROM topic_progress WHERE topic_code = ?",
-            (topic_code,)
-        )
+        # Check if the topic exists for this user
+        if user_id:
+            cursor.execute(
+                "SELECT id FROM topic_progress WHERE topic_code = ? AND user_id = ?",
+                (topic_code, user_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT id FROM topic_progress WHERE topic_code = ?",
+                (topic_code,)
+            )
         result = cursor.fetchone()
         
         if result:
             # Update existing topic
-            cursor.execute(
-                "UPDATE topic_progress SET last_studied = ?, proficiency = ?, notes = ? WHERE topic_code = ?",
-                (datetime.now(), proficiency, notes, topic_code)
-            )
+            if user_id:
+                cursor.execute(
+                    "UPDATE topic_progress SET last_studied = ?, proficiency = ?, notes = ? WHERE topic_code = ? AND user_id = ?",
+                    (datetime.now(), proficiency, notes, topic_code, user_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE topic_progress SET last_studied = ?, proficiency = ?, notes = ? WHERE topic_code = ?",
+                    (datetime.now(), proficiency, notes, topic_code)
+                )
         else:
             # Insert new topic
-            cursor.execute(
-                "INSERT INTO topic_progress (topic_code, topic_title, last_studied, proficiency, notes) VALUES (?, ?, ?, ?, ?)",
-                (topic_code, topic_title, datetime.now(), proficiency, notes)
-            )
+            if user_id:
+                cursor.execute(
+                    "INSERT INTO topic_progress (topic_code, topic_title, last_studied, proficiency, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)",
+                    (topic_code, topic_title, datetime.now(), proficiency, notes, user_id)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO topic_progress (topic_code, topic_title, last_studied, proficiency, notes) VALUES (?, ?, ?, ?, ?)",
+                    (topic_code, topic_title, datetime.now(), proficiency, notes)
+                )
         self.conn.commit()
     
-    def record_exam_practice(self, topic_code, question_type, difficulty, score, max_score):
+    def record_exam_practice(self, topic_code, question_type, difficulty, score, max_score, user_id=None):
         """Record results from exam practice attempts."""
         cursor = self.conn.cursor()
-        cursor.execute(
-            "INSERT INTO exam_practice (topic_code, question_type, difficulty, score, max_score, date_attempted) VALUES (?, ?, ?, ?, ?, ?)",
-            (topic_code, question_type, difficulty, score, max_score, datetime.now())
-        )
+        if user_id:
+            cursor.execute(
+                "INSERT INTO exam_practice (topic_code, question_type, difficulty, score, max_score, date_attempted, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (topic_code, question_type, difficulty, score, max_score, datetime.now(), user_id)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO exam_practice (topic_code, question_type, difficulty, score, max_score, date_attempted) VALUES (?, ?, ?, ?, ?, ?)",
+                (topic_code, question_type, difficulty, score, max_score, datetime.now())
+            )
         self.conn.commit()
     
     def get_session_history(self, limit=5):
@@ -558,25 +582,41 @@ class OCRCSDatabase:
         )
         return cursor.fetchall()
     
-    def get_topic_progress(self):
+    def get_topic_progress(self, user_id=None):
         """Get the student's progress on all topics."""
         cursor = self.conn.cursor()
-        cursor.execute(
-            "SELECT topic_code, topic_title, last_studied, proficiency, notes FROM topic_progress ORDER BY topic_code"
-        )
-        return cursor.fetchall()
-    
-    def get_exam_progress(self, topic_code=None):
-        """Get the student's progress on exam practice questions."""
-        cursor = self.conn.cursor()
-        if topic_code:
+        if user_id:
             cursor.execute(
-                "SELECT topic_code, question_type, AVG(score*100.0/max_score) as avg_percent FROM exam_practice WHERE topic_code = ? GROUP BY topic_code, question_type",
-                (topic_code,)
+                "SELECT topic_code, topic_title, last_studied, proficiency, notes FROM topic_progress WHERE user_id = ? ORDER BY topic_code",
+                (user_id,)
             )
         else:
             cursor.execute(
-                "SELECT topic_code, question_type, AVG(score*100.0/max_score) as avg_percent FROM exam_practice GROUP BY topic_code, question_type"
+                "SELECT topic_code, topic_title, last_studied, proficiency, notes FROM topic_progress ORDER BY topic_code"
+            )
+        return cursor.fetchall()
+    
+    def get_exam_progress(self, topic_code=None, user_id=None):
+        """Get the student's progress on exam practice questions."""
+        cursor = self.conn.cursor()
+        if topic_code and user_id:
+            cursor.execute(
+                "SELECT topic_code, AVG(max_score) as avg_max, AVG(score) as avg_score, AVG(score*100.0/max_score) as avg_percent FROM exam_practice WHERE topic_code = ? AND user_id = ? GROUP BY topic_code",
+                (topic_code, user_id)
+            )
+        elif topic_code:
+            cursor.execute(
+                "SELECT topic_code, AVG(max_score) as avg_max, AVG(score) as avg_score, AVG(score*100.0/max_score) as avg_percent FROM exam_practice WHERE topic_code = ? GROUP BY topic_code",
+                (topic_code,)
+            )
+        elif user_id:
+            cursor.execute(
+                "SELECT topic_code, AVG(max_score) as avg_max, AVG(score) as avg_score, AVG(score*100.0/max_score) as avg_percent FROM exam_practice WHERE user_id = ? GROUP BY topic_code",
+                (user_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT topic_code, AVG(max_score) as avg_max, AVG(score) as avg_score, AVG(score*100.0/max_score) as avg_percent FROM exam_practice GROUP BY topic_code"
             )
         return cursor.fetchall()
     

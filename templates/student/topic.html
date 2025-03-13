@@ -18,7 +18,8 @@
             <ul>
                 <li><a href="{{ url_for('student_dashboard') }}">Topics</a></li>
                 <li><a href="{{ url_for('student_progress') }}">My Progress</a></li>
-                <li><a href="{{ url_for('index') }}">Sign Out</a></li>
+                <li><a href="{{ url_for('pdf_library') }}">My PDFs</a></li>
+                <li><a href="{{ url_for('logout') }}">Sign Out</a></li>
             </ul>
         </nav>
     </header>
@@ -72,6 +73,9 @@
                 <div class="topic-actions">
                     <button id="rate-understanding-btn" class="btn btn-secondary">Rate Understanding</button>
                     <button id="record-exam-btn" class="btn btn-secondary">Record Exam Score</button>
+                    <button id="generate-pdf-btn" class="btn btn-primary" style="display: none;">
+                        <i class="fas fa-file-pdf"></i> Generate Exam PDF
+                    </button>
                     <button id="refresh-chat-btn" class="btn btn-secondary"><i class="fas fa-sync"></i> Refresh Chat</button>
                 </div>
                 </aside>
@@ -118,18 +122,6 @@
                         <span class="close-modal">&times;</span>
                         <h3>Record Exam Practice Score</h3>
                         <form id="exam-form">
-                            <div class="form-group">
-                                <label for="question-type">Question Type:</label>
-                                <input type="text" id="question-type" name="question-type" placeholder="e.g., short answer, extended response" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="difficulty">Difficulty Level:</label>
-                                <select id="difficulty" name="difficulty" required>
-                                    <option value="1">1 - Basic</option>
-                                    <option value="2">2 - Intermediate</option>
-                                    <option value="3">3 - Advanced</option>
-                                </select>
-                            </div>
                             <div class="form-group">
                                 <label for="score">Your Score:</label>
                                 <input type="number" id="score" name="score" min="0" required>

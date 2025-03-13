@@ -5,3 +5,5 @@ PyPDF2
 markdown
 gunicorn
 rich
+pyrebase
+werkzeug

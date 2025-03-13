@@ -225,6 +225,14 @@ modeBtns.forEach(btn => {
         // Update current mode
         currentMode = btn.dataset.mode;
         
+        // Show/hide PDF generation button based on mode
+        const generatePdfBtn = document.getElementById('generate-pdf-btn');
+        if (currentMode === 'test') {
+            generatePdfBtn.style.display = 'flex';
+        } else {
+            generatePdfBtn.style.display = 'none';
+        }
+        
         // Send initial prompt for the new mode
         sendInitialPrompt();
     });
@@ -250,6 +258,95 @@ rateBtn.addEventListener('click', () => {
 examBtn.addEventListener('click', () => {
     examModal.style.display = 'block';
 });
+
+// PDF Generation button
+document.getElementById('generate-pdf-btn').addEventListener('click', generatePDF);
+
+function generatePDF() {
+    // Find the latest message that contains LaTeX content
+    let latexContent = null;
+    let lastAssistantMessage = null;
+    
+    if (conversationHistory.length > 0) {
+        // First, try to find a message with LaTeX code markers
+        for (let i = conversationHistory.length - 1; i >= 0; i--) {
+            if (conversationHistory[i].role === 'assistant') {
+                const messageText = conversationHistory[i].content;
+                
+                // Save the last assistant message as fallback
+                if (!lastAssistantMessage) {
+                    lastAssistantMessage = messageText;
+                }
+                
+                // Look for common LaTeX document markers
+                if (messageText.includes('\\documentclass') || 
+                    messageText.includes('\\begin{document}')) {
+                    latexContent = messageText;
+                    break;
+                }
+            }
+        }
+        
+        // If no LaTeX content found, use the last assistant message
+        if (!latexContent && lastAssistantMessage) {
+            latexContent = lastAssistantMessage;
+        }
+    }
+    
+    if (!latexContent) {
+        alert('No content available to generate PDF');
+        return;
+    }
+    
+    // Show loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.classList.add('message', 'system');
+    loadingDiv.innerHTML = "Generating LaTeX PDF... This may take a moment.";
+    chatMessages.appendChild(loadingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Make API request
+    fetch('/generate-exam-pdf', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            topic_title: topicTitle,
+            content: latexContent,
+            topic_code: topicCode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove loading indicator
+        loadingDiv.remove();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        if (data.success && data.pdf_url) {
+            // Open PDF in new tab
+            window.open(data.pdf_url, '_blank');
+            
+            // Show success message with link to PDF library
+            const successDiv = document.createElement('div');
+            successDiv.classList.add('message', 'system');
+            successDiv.innerHTML = `
+                PDF generated successfully and opened in a new tab! 
+                <a href="/student/pdf-library">View all your PDFs</a>
+            `;
+            chatMessages.appendChild(successDiv);
+        } else {
+            throw new Error('Failed to generate PDF');
+        }
+        
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    })
+    .catch(error => {
+        console.error('Error generating PDF:', error);
+        loadingDiv.innerHTML = `Error generating PDF: ${error.message}`;
+    });
+}
 
 // Refresh button to clear chat
 refreshBtn.addEventListener('click', () => {
@@ -354,8 +451,6 @@ rateForm.addEventListener('submit', e => {
 examForm.addEventListener('submit', e => {
     e.preventDefault();
     
-    const questionType = document.getElementById('question-type').value;
-    const difficulty = document.getElementById('difficulty').value;
     const score = document.getElementById('score').value;
     const maxScore = document.getElementById('max-score').value;
     
@@ -364,7 +459,7 @@ examForm.addEventListener('submit', e => {
         return;
     }
     
-    // Send exam score to server
+    // Send exam score to server (with default values for question_type and difficulty)
     fetch('/student/record-exam', {
         method: 'POST',
         headers: {
@@ -372,8 +467,6 @@ examForm.addEventListener('submit', e => {
         },
         body: JSON.stringify({
             topic_code: topicCode,
-            question_type: questionType,
-            difficulty: parseInt(difficulty),
             score: parseInt(score),
             max_score: parseInt(maxScore)
         })

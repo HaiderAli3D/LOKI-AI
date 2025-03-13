@@ -181,6 +181,19 @@ header p {
     border-color: var(--secondary-dark);
 }
 
+.btn-danger {
+    color: #fff;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+    background-color: #d32f2f;
+    border-color: #d32f2f;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+}
+
 .btn-lg {
     padding: 0.8rem 2.5rem;
     font-size: 1.1rem;
@@ -260,6 +273,88 @@ header p {
 .dashboard-card:hover, .feature-card:hover, .component-card:hover, .auth-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--box-shadow-hover);
+}
+
+/* PDF Library Styling */
+.pdf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.pdf-card {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--box-shadow);
+    padding: 1.5rem;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+}
+
+.pdf-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.pdf-card-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.pdf-card-content h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+}
+
+.pdf-card-topic, .pdf-card-date {
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.pdf-card-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.pdf-card-actions .btn {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+.no-pdfs {
+    text-align: center;
+    padding: 3rem;
+    background-color: var(--light-color);
+    border-radius: 16px;
+    margin-top: 2rem;
+}
+
+/* PDF Generation button styling */
+#generate-pdf-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: #4a7feb;
+    transition: all 0.3s ease;
+}
+
+#generate-pdf-btn:hover {
+    background-color: #3a6edb;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(74, 127, 235, 0.3);
+}
+
+#generate-pdf-btn i {
+    font-size: 1.1rem;
 }
 
 /* Global Chat */
@@ -776,6 +871,26 @@ header p {
 
 .topic-actions button {
     flex-grow: 1;
+}
+
+/* Generate PDF Button Styles */
+#generate-pdf-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: #4a7feb;
+    transition: all 0.3s ease;
+}
+
+#generate-pdf-btn:hover {
+    background-color: #3a6edb;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(74, 127, 235, 0.3);
+}
+
+#generate-pdf-btn i {
+    font-size: 1.1rem;
 }
 
 .chat-container {

@@ -12,10 +12,14 @@ import sqlite3
 import hashlib
 import shutil
 import time
+import re
+import subprocess
+from datetime import datetime
 from datetime import datetime
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+import pyrebase
 
 # Model Option:
 # Best model but expensive: "claude-3-7-sonnet-20250219"
@@ -122,6 +126,90 @@ def is_api_key_set():
     api_key = os.getenv("ANTHROPIC_API_KEY")
     return api_key is not None and api_key.strip() != ""
 
+# LaTeX PDF helper functions
+def slugify(text):
+    """Convert text to URL-friendly format."""
+    text = re.sub(r'[^\w\s-]', '', text).strip().lower()
+    text = re.sub(r'[\s]+', '_', text)
+    return text[:50]  # Limit length to 50 chars
+
+def generate_latex_document(title, content, author="APOLLO AI"):
+    """Generate a LaTeX document from content."""
+    latex_template = r"""
+\documentclass{article}
+\usepackage{amsmath,amssymb,graphicx,hyperref,listings,xcolor}
+\usepackage[a4paper,margin=1in]{geometry}
+
+\title{%s}
+\author{%s}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+%s
+
+\end{document}
+""" % (title, author, content)
+    
+    return latex_template
+
+def cleanup_old_pdfs(user_id):
+    """Remove old PDF files if a user has more than 10 saved."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    
+    # Get all PDFs for the user, ordered by creation date (oldest first)
+    cursor.execute(
+        "SELECT id, filename FROM latex_pdfs WHERE user_id = ? ORDER BY created_at ASC", 
+        (user_id,)
+    )
+    pdfs = cursor.fetchall()
+    
+    # If there are more than 10 PDFs, delete the oldest ones
+    if len(pdfs) > 10:
+        to_delete = pdfs[:-10]  # Keep the 10 newest PDFs
+        
+        for pdf_id, filename in to_delete:
+            # Delete the file
+            filepath = os.path.join('temp_latex', filename)
+            pdf_filepath = filepath[:-4] + '.pdf'  # Replace .tex with .pdf
+            
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                if os.path.exists(pdf_filepath):
+                    os.remove(pdf_filepath)
+            except Exception as e:
+                print(f"Error deleting file {filename}: {e}")
+            
+            # Delete the database record
+            cursor.execute("DELETE FROM latex_pdfs WHERE id = ?", (pdf_id,))
+    
+    conn.commit()
+    conn.close()
+
+def add_pdf_to_database(user_id, topic_code, topic_title, filename):
+    """Add a new PDF record to the database."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "INSERT INTO latex_pdfs (user_id, topic_code, topic_title, filename) VALUES (?, ?, ?, ?)",
+            (user_id, topic_code, topic_title, filename)
+        )
+        conn.commit()
+        pdf_id = cursor.lastrowid
+    except Exception as e:
+        conn.rollback()
+        pdf_id = None
+        print(f"Error adding PDF to database: {e}")
+    finally:
+        conn.close()
+    
+    return pdf_id
+
 # Database functions for user management
 def init_user_db():
     """Initialize the user database tables if they don't exist."""
@@ -140,6 +228,20 @@ def init_user_db():
     )
     ''')
     
+    # Create generated_pdfs table for storing LaTeX PDFs
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS generated_pdfs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        topic_code TEXT NOT NULL,
+        title TEXT NOT NULL,
+        latex_content TEXT NOT NULL,
+        pdf_path TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    ''')
+    
     # Modify sessions table to include user_id if it exists
     cursor.execute("PRAGMA table_info(sessions)")
     columns = cursor.fetchall()
@@ -150,6 +252,19 @@ def init_user_db():
             cursor.execute("ALTER TABLE sessions ADD COLUMN user_id INTEGER REFERENCES users(id)")
         except sqlite3.Error as e:
             print(f"Error modifying sessions table: {e}")
+            
+    # Create latex_pdfs table for storing generated PDFs
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS latex_pdfs (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        topic_code TEXT NOT NULL,
+        topic_title TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    ''')
     
     conn.commit()
     conn.close()
@@ -223,6 +338,14 @@ def admin_required(f):
 def create_system_prompt():
     system_prompt = """
     You are an expert OCR A-Level Computer Science tutor with extensive knowledge of the H446 specification and examination standards. Your purpose is to help students understand complex computer science concepts, practice their skills, and prepare for their examinations.
+    
+    EXAM PAPER FORMATTING:
+    When in TEST mode creating an exam paper, please provide complete and compilable LaTeX code, including:
+    - Full document preamble with \\documentclass{article}
+    - All necessary packages: amsmath, amssymb, graphicx, enumitem, etc.
+    - Complete document structure with \\begin{document} and \\end{document}
+    - Properly formatted questions using appropriate environments
+    - Mark allocations in square brackets (e.g., [5 marks])
 
     TEACHING APPROACH:
     - Start with clear, concise definitions of key concepts
@@ -506,11 +629,12 @@ Aim for brief, focused responses suitable for last-minute revision. Ensure the s
         return f"""
 You are now testing the user’s knowledge of {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}).
 
-Please create a practice assessment that:
+Please create a practice assessment using LaTeX that:
 1. Includes 4–6 exam-style questions covering various aspects of the topic.
 2. Mixes short-answer and extended-response questions, matching OCR’s style and format.
 3. Clearly states grade boundaries (e.g., A/B/C).
 4. Presents all questions at once, then waits for the user’s answers before providing any marking or feedback.
+5. The assesment should have 30-45 marks and a reasonable time limit stated with it.
 
 **Assessment Process**:
 - After you present all questions, the user will submit their answers.
@@ -520,6 +644,8 @@ Please create a practice assessment that:
   - **Devising a Plan**: Discuss how they might have brainstormed or structured their approach.
   - **Carrying Out the Plan**: Comment on the correctness and clarity of their solution process.
   - **Looking Back**: Encourage reflection on how they could improve or generalize their approach to similar problems.
+
+When creating the paper don't responde with anything but the LaTeX code for the paper. If the user asks a question or asks for marking then respond normaly in english. Full exam papers should always be writen in LaTeX.
 
 Keep the questions realistic in scope and length to simulate an actual OCR exam. When providing feedback, aim for constructive guidance—highlight correct reasoning, point out errors, and suggest strategies to tackle similar questions in the future.
 """
@@ -1182,26 +1308,30 @@ def student_record_exam():
     data = request.json
     user_id = session.get('user_id')
     topic_code = data.get('topic_code')
-    question_type = data.get('question_type')
-    difficulty = data.get('difficulty')
     score = data.get('score')
     max_score = data.get('max_score')
     
-    if not all([topic_code, question_type, difficulty, score, max_score]):
-        return jsonify({'error': 'Missing required fields'})
+    # Set default values for simplified interface
+    question_type = data.get('question_type', 'exam')
+    difficulty = data.get('difficulty', 2)  # Medium difficulty by default
+    
+    if not all([topic_code, score, max_score]):
+        return jsonify({'error': 'Missing required fields: topic_code, score, and max_score are required'})
     
     database = get_db()
     try:
         # Try to record with user_id
         database.record_exam_practice(topic_code, question_type, difficulty, score, max_score, user_id=user_id)
-    except sqlite3.OperationalError as e:
-        # Fallback if we get "no such column" error
-        if "no such column: user_id" in str(e):
-            print(f"Warning: User ID column missing in exam_practice: {e}")
+    except Exception as e:
+        # Check if it's the user_id parameter error
+        if isinstance(e, TypeError) and "got an unexpected keyword argument 'user_id'" in str(e):
             # Fallback to non-user-specific record
             database.record_exam_practice(topic_code, question_type, difficulty, score, max_score)
+        elif isinstance(e, sqlite3.OperationalError) and "no such column: user_id" in str(e):
+            # Fallback if we get "no such column" error
+            database.record_exam_practice(topic_code, question_type, difficulty, score, max_score)
         else:
-            # Re-raise if it's some other database error
+            # Re-raise if it's some other error
             raise
     
     return jsonify({'success': True})
@@ -1304,6 +1434,197 @@ def clear_chat_history():
 def serve_resource(filename):
     """Serve resource files (PDFs, etc.)."""
     return send_from_directory('resources', filename)
+
+@app.route('/generate-exam-pdf', methods=['POST'])
+@login_required
+def generate_exam_pdf():
+    """Generate a PDF from LaTeX content."""
+    data = request.json
+    topic_title = data.get('topic_title', 'OCR Computer Science Practice Paper')
+    content = data.get('content', '')
+    topic_code = data.get('topic_code', '')
+    user_id = session.get('user_id')
+    
+    if not content:
+        return jsonify({'error': 'No content provided'}), 400
+    
+    # Check if content contains LaTeX markers
+    contains_latex = '\\documentclass' in content or '\\begin{document}' in content
+    
+    # If it's not already a complete LaTeX document, wrap it
+    if not contains_latex:
+        content = generate_latex_document(topic_title, content)
+    
+    # Import the LaTeX compiler
+    from latex_compiler import compile_latex_to_pdf
+    
+    # Compile LaTeX to PDF
+    pdf_path = compile_latex_to_pdf(content, user_id, topic_code, topic_title)
+    
+    if not pdf_path:
+        return jsonify({
+            'error': 'PDF compilation failed', 
+            'details': 'Check server logs for details'
+        }), 500
+    
+    try:
+        # Connect to database
+        conn = sqlite3.connect('user_database.db')
+        cursor = conn.cursor()
+        
+        # Store in database
+        cursor.execute(
+            "INSERT INTO generated_pdfs (user_id, topic_code, title, latex_content, pdf_path) VALUES (?, ?, ?, ?, ?)",
+            (user_id, topic_code, topic_title, content, pdf_path)
+        )
+        
+        pdf_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        # Legacy cleanup for backward compatibility
+        cleanup_old_pdfs(user_id)
+        
+        # Return URL to the generated PDF
+        pdf_url = url_for('static', filename=pdf_path, _external=True)
+        
+        return jsonify({
+            'success': True,
+            'pdf_url': pdf_url,
+            'pdf_id': pdf_id
+        })
+    except Exception as e:
+        return jsonify({
+            'error': 'Error storing PDF information', 
+            'details': str(e)
+        }), 500
+
+@app.route('/temp_latex/<filename>')
+@login_required
+def serve_pdf(filename):
+    """Serve PDF files."""
+    return send_from_directory('temp_latex', filename, mimetype='application/pdf')
+
+@app.route('/student/pdf-library')
+@login_required
+def pdf_library():
+    """Show all PDFs created by the user."""
+    user_id = session.get('user_id')
+    
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    
+    # Get PDFs from generated_pdfs table (new system)
+    cursor.execute(
+        "SELECT id, topic_code, title, created_at, pdf_path FROM generated_pdfs WHERE user_id = ? ORDER BY created_at DESC",
+        (user_id,)
+    )
+    
+    pdfs = cursor.fetchall()
+    
+    # Get PDFs from latex_pdfs table (old system) for backward compatibility
+    cursor.execute(
+        "SELECT id, topic_code, topic_title, created_at, filename FROM latex_pdfs WHERE user_id = ? ORDER BY created_at DESC",
+        (user_id,)
+    )
+    
+    legacy_pdfs = cursor.fetchall()
+    
+    # Convert legacy PDFs to the same format as new PDFs
+    for i, (pdf_id, topic_code, title, created_at, filename) in enumerate(legacy_pdfs):
+        # Replace filename path with URL path format
+        legacy_pdfs[i] = (pdf_id, topic_code, title, created_at, f"temp_latex/{filename.replace('.tex', '.pdf')}")
+    
+    # Combine both PDF lists
+    all_pdfs = pdfs + legacy_pdfs
+    
+    conn.close()
+    
+    return render_template('student/pdf_library.html', 
+                          pdfs=all_pdfs,
+                          user_name=session.get('user_name'))
+
+@app.route('/student/delete-pdf', methods=['POST'])
+@login_required
+def delete_pdf():
+    """Delete a PDF created by the user."""
+    data = request.json
+    pdf_id = data.get('pdf_id')
+    user_id = session.get('user_id')
+    
+    if not pdf_id:
+        return jsonify({'error': 'Missing PDF ID'}), 400
+    
+    try:
+        conn = sqlite3.connect('user_database.db')
+        cursor = conn.cursor()
+        
+        # First check if it's in the generated_pdfs table
+        cursor.execute(
+            "SELECT pdf_path FROM generated_pdfs WHERE id = ? AND user_id = ?", 
+            (pdf_id, user_id)
+        )
+        
+        result = cursor.fetchone()
+        
+        if result:
+            # It's in the new system
+            pdf_path = result[0]
+            
+            # Delete the physical file
+            file_path = os.path.join('static', pdf_path)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            # Delete the database record
+            cursor.execute(
+                "DELETE FROM generated_pdfs WHERE id = ? AND user_id = ?", 
+                (pdf_id, user_id)
+            )
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({'success': True})
+        else:
+            # Check if it's in the legacy system
+            cursor.execute(
+                "SELECT filename FROM latex_pdfs WHERE id = ? AND user_id = ?", 
+                (pdf_id, user_id)
+            )
+            
+            result = cursor.fetchone()
+            
+            if result:
+                # It's in the old system
+                filename = result[0]
+                
+                # Delete the physical files (both .tex and .pdf)
+                tex_path = os.path.join('temp_latex', filename)
+                pdf_path = tex_path.replace('.tex', '.pdf')
+                
+                if os.path.exists(tex_path):
+                    os.remove(tex_path)
+                if os.path.exists(pdf_path):
+                    os.remove(pdf_path)
+                
+                # Delete the database record
+                cursor.execute(
+                    "DELETE FROM latex_pdfs WHERE id = ? AND user_id = ?", 
+                    (pdf_id, user_id)
+                )
+                
+                conn.commit()
+                conn.close()
+                
+                return jsonify({'success': True})
+            
+            # If we get here, the PDF wasn't found
+            conn.close()
+            return jsonify({'error': 'PDF not found or unauthorized'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': f'Error deleting PDF: {str(e)}'}), 500
 
 # Function to generate streaming response for global chat
 def generate_global_chat_stream(question, conversation_history):
