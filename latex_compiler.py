@@ -52,6 +52,9 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
     temp_dir = Path(f"latex_temp_{unique_id}")
     temp_dir.mkdir(exist_ok=True)
     tex_file_path = temp_dir / "temp.tex"
+    print(f"Creating temp directory: {temp_dir}")
+    print(f"Temp directory exists: {temp_dir.exists()}")
+    
     
     try:
         # Process LaTeX content to handle missing images
@@ -94,6 +97,9 @@ def compile_latex_to_pdf(latex_content, user_id, topic_code, title="OCR A-Level 
             text=True,
             check=False  # Don't raise exception on error
         )
+        print(f"Return code: {result.returncode}")
+        print(f"STDOUT: {result.stdout}")
+        print(f"STDERR: {result.stderr}")
         
         if result.returncode != 0:
             print(f"LaTeX compilation error (first pass): {result.stderr}")

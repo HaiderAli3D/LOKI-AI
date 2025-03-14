@@ -652,6 +652,10 @@ note: dont use images in the latex code
 When creating the paper don't responde with anything but the LaTeX code for the paper. If the user asks a question or asks for marking then respond normaly in english. Full exam papers should always be writen in LaTeX.
 
 Keep the questions realistic in scope and length to simulate an actual OCR exam. When providing feedback, aim for constructive guidance—highlight correct reasoning, point out errors, and suggest strategies to tackle similar questions in the future.
+
+IMPORTANT: NEVER USE ANY IMAGES OR EXTERNAL RESOURCES IN LATEX CODE
+IMPORTANT: ONLY OUTPUT LATEX CODE, YOU FIRST LINE SHOULD BE LATEX CODE NOTHING ELSE
+IMPORTANT: DO NOT OUTPUT ANYTHING OTHER THAN LATEX CODE, NO TITLE OR TAGS NECECARY JUST CODE
 """
 
     else:
