@@ -16,9 +16,20 @@ const examForm = document.getElementById('exam-form');
 
 // Initialize chat when page loads
 window.addEventListener('DOMContentLoaded', () => {
-    // Always start with a fresh chat when loading a topic page
-    // This ensures the AI is aware of the current topic
-    sendInitialPrompt();
+    // Check if we have a session ID for this topic already
+    const topicSessionKey = `session_${topicCode}`;
+    const savedSessionId = localStorage.getItem(topicSessionKey);
+    
+    if (savedSessionId) {
+        // We have an existing session, try to load it
+        sessionDBId = savedSessionId;
+        console.log("Found existing session ID:", sessionDBId);
+        loadRecentMessages();
+    } else {
+        // No existing session, start a new one
+        console.log("No existing session found, starting fresh");
+        sendInitialPrompt();
+    }
 });
 
 // Function to load recent messages
@@ -32,7 +43,9 @@ function loadRecentMessages() {
     loadingDiv.innerHTML = "Loading previous messages...";
     chatMessages.appendChild(loadingDiv);
     
-    // Fetch recent messages from server - limit to 10 messages
+    console.log("Loading messages for session:", sessionDBId);
+    
+    // Fetch recent messages from server
     fetch('/student/get-recent-messages', {
         method: 'POST',
         headers: {
@@ -42,17 +55,25 @@ function loadRecentMessages() {
             session_id: sessionDBId
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         // Remove loading message
         loadingDiv.remove();
         
         if (data.error) {
+            console.error("Error loading messages:", data.error);
             addMessage('system', `Error: ${data.error}`);
             // If there was an error, fall back to initial prompt
             sendInitialPrompt();
             return;
         }
+        
+        console.log(`Loaded ${data.messages ? data.messages.length : 0} messages`);
         
         if (!data.messages || data.messages.length === 0) {
             // No messages found, send initial prompt
@@ -71,27 +92,49 @@ function loadRecentMessages() {
             userHasLastMessage = true;
         }
         
-        // Add messages to the chat (excluding any with initial prompts)
+        // Add messages to the chat (filtering system prompts)
         data.messages.forEach(msg => {
-            // Skip messages that are initial prompts
-            const isInitialPrompt = msg.role === 'user' && 
-                (msg.content.includes('I\'d like to learn about') || 
-                 msg.content.includes('I\'d like to practice') || 
-                 msg.content.includes('I\'d like to test') || 
-                 msg.content.includes('I\'d like to review'));
+            // Detect if this is an initial/system prompt that should be hidden
+            const isInitialPrompt = msg.role === 'user' && (
+                // Match standard mode prompts
+                msg.content.includes('I\'d like to learn about') || 
+                msg.content.includes('I\'d like to practice') || 
+                msg.content.includes('I\'d like to test') || 
+                msg.content.includes('I\'d like to review') ||
+                msg.content.includes('I\'d like to code') ||
+                // Match mode change prompts
+                msg.content.includes('I\'d like to explore') ||
+                // More extensive checking for default prompts
+                msg.content.includes('The goal of this mode is to') ||
+                msg.content.includes('You are now teaching the user about') ||
+                msg.content.includes('You are now helping the user practice') ||
+                msg.content.includes('Please create a practice assessment') ||
+                // Check for mode change markers
+                (msg.content.includes(`I'd like to ${currentMode}`) && msg.content.includes('[CONTEXT:'))
+            );
             
-            if (!isInitialPrompt) {
-                // Add to conversation history
-                conversationHistory.push({
-                    role: msg.role,
-                    content: msg.content
-                });
-                
-                // Don't show system messages and context tags in the UI
-                if (msg.role !== 'system' && !msg.content.includes('[CONTEXT:')) {
-                    const displayContent = msg.content.split('\n\n[CONTEXT:')[0]; // Remove context tags
-                    addMessage(msg.role, displayContent);
+            console.log(`Message role: ${msg.role}, isInitialPrompt: ${isInitialPrompt}, First 40 chars: ${msg.content.substring(0, 40)}...`);
+            
+            // Always add all messages to conversation history for Claude
+            conversationHistory.push({
+                role: msg.role,
+                content: msg.content
+            });
+            
+            // Only display non-system, non-initial prompt messages in the UI
+            if (!isInitialPrompt && msg.role !== 'system') {
+                // Remove context tags if present
+                let displayContent = msg.content;
+                if (displayContent.includes('[CONTEXT:')) {
+                    displayContent = displayContent.split('\n\n[CONTEXT:')[0];
                 }
+                
+                // Remove mode tags if present
+                if (displayContent.includes('[MODE:')) {
+                    displayContent = displayContent.split('\n\n[MODE:')[0];
+                }
+                
+                addMessage(msg.role, displayContent);
             }
         });
         
@@ -184,6 +227,22 @@ function getAIResponseToExistingMessage(userMessage) {
                         content: fullResponse
                     });
                     
+                    // If we have a session ID in the database, save the response there too
+                    if (sessionDBId) {
+                        fetch('/student/save-response', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                session_id: sessionDBId,
+                                response: fullResponse
+                            })
+                        }).catch(error => {
+                            console.error('Error saving response to database:', error);
+                        });
+                    }
+                    
                     return;
                 }
                 
@@ -222,19 +281,147 @@ modeBtns.forEach(btn => {
         modeBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         
-        // Update current mode
-        currentMode = btn.dataset.mode;
+        const newMode = btn.dataset.mode;
         
-        // Show/hide PDF generation button based on mode
-        const generatePdfBtn = document.getElementById('generate-pdf-btn');
-        if (currentMode === 'test') {
-            generatePdfBtn.style.display = 'flex';
-        } else {
-            generatePdfBtn.style.display = 'none';
+        // Only trigger a new prompt if the mode actually changed
+        if (currentMode !== newMode) {
+            // Update current mode
+            currentMode = newMode;
+            
+            // Show/hide PDF generation button based on mode
+            const generatePdfBtn = document.getElementById('generate-pdf-btn');
+            if (currentMode === 'test') {
+                generatePdfBtn.style.display = 'flex';
+            } else {
+                generatePdfBtn.style.display = 'none';
+            }
+            
+            // Create a mode change prompt (which won't be shown to the user)
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const modePrompt = `I'd like to ${currentMode} ${topicTitle}.\n\n[CONTEXT: Topic ${topicCode} ${topicTitle} | ${timeString}]`;
+            
+            // Add to conversation history but don't display in UI
+            conversationHistory.push({
+                role: "user",
+                content: modePrompt
+            });
+            
+            // Create message div for assistant
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', 'assistant');
+            chatMessages.appendChild(messageDiv);
+            
+            // Display "thinking..." message initially
+            messageDiv.innerHTML = "<em>Thinking...</em>";
+            
+            // Add unique request ID to track this specific request
+            const requestId = Date.now().toString();
+            
+            // Send the mode change request
+            fetch('/student/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: modePrompt,
+                    topic_code: topicCode,
+                    mode: currentMode,
+                    stream: true,
+                    request_id: requestId,
+                    session_id: sessionDBId
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    messageDiv.remove();
+                    addMessage('system', `Error: ${data.error}`);
+                    return;
+                }
+                
+                // Set up streaming with the unique request ID
+                let fullResponse = '';
+                
+                // Connect to the SSE endpoint with request ID
+                const source = new EventSource(`/student/chat?request_id=${requestId}`);
+                
+                source.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.connected) {
+                            // Just a connection confirmation, ignore
+                            return;
+                        }
+                        
+                        if (data.done) {
+                            source.close();
+                            
+                            // If we have full_response, use it
+                            if (data.full_response) {
+                                fullResponse = data.full_response;
+                                messageDiv.innerHTML = parseMarkdown(fullResponse);
+                            }
+                            
+                            // Add the assistant's response to conversation history
+                            conversationHistory.push({
+                                role: "assistant",
+                                content: fullResponse
+                            });
+                            
+                            // If we have a session ID in the database, save the response there too
+                            if (sessionDBId) {
+                                fetch('/student/save-response', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        session_id: sessionDBId,
+                                        response: fullResponse
+                                    })
+                                }).catch(error => {
+                                    console.error('Error saving response to database:', error);
+                                });
+                            }
+                            
+                            return;
+                        }
+                        
+                        if (data.text) {
+                            fullResponse += data.text;
+                            messageDiv.innerHTML = parseMarkdown(fullResponse);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing SSE message:', error, event.data);
+                    }
+                };
+                
+                source.onerror = function(error) {
+                    console.error('EventSource error:', error);
+                    source.close();
+                    
+                    if (fullResponse === '') {
+                        messageDiv.remove();
+                        addMessage('system', 'Error: Failed to get a response. Please try again.');
+                    }
+                };
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                messageDiv.remove();
+                addMessage('system', `Error: ${error.message}`);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
         }
-        
-        // Send initial prompt for the new mode
-        sendInitialPrompt();
     });
 });
 
@@ -351,9 +538,20 @@ function generatePDF() {
 // Refresh button to clear chat
 refreshBtn.addEventListener('click', () => {
     if (confirm('Are you sure you want to clear the chat and start a new conversation?')) {
-        // Clear the database entries first
+        // Clear UI
+        chatMessages.innerHTML = '';
+        
+        // Clear local conversation history
+        conversationHistory = [];
+        
+        // Remove the session from localStorage
+        const topicSessionKey = `session_${topicCode}`;
+        localStorage.removeItem(topicSessionKey);
+        
+        // Clear the database entries
         clearChatHistory();
-        // Then start a new conversation
+        
+        // Start a new conversation after a short delay
         setTimeout(() => {
             sendInitialPrompt();
         }, 500);
@@ -363,6 +561,8 @@ refreshBtn.addEventListener('click', () => {
 // Function to clear chat history from the database
 function clearChatHistory() {
     if (!sessionDBId) return;
+    
+    console.log("Clearing chat history for session:", sessionDBId);
     
     fetch('/student/clear-chat-history', {
         method: 'POST',
@@ -380,6 +580,8 @@ function clearChatHistory() {
             addMessage('system', `Error clearing chat history: ${data.error}`);
         } else {
             console.log('Chat history cleared successfully');
+            // Reset session ID to force creation of a new session
+            sessionDBId = null;
         }
     })
     .catch(error => {
@@ -579,6 +781,15 @@ function sendInitialPrompt() {
             messageDiv.remove();
             addMessage('system', `Error: ${data.error}`);
             return;
+        }
+        
+        // Store the session ID if it was returned from the server
+        if (data.session_id) {
+            sessionDBId = data.session_id;
+            // Save this session ID in localStorage for this topic
+            const topicSessionKey = `session_${topicCode}`;
+            localStorage.setItem(topicSessionKey, sessionDBId);
+            console.log("Created and saved new session ID:", sessionDBId);
         }
         
         // Remove the loading message

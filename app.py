@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-import pyrebase
+# import pyrebase  # Commented out due to compatibility issues with Python 3.12
 
 # Model Option:
 # Best model but expensive: "claude-3-7-sonnet-20250219"
@@ -921,10 +921,8 @@ def student_topic(component, topic_code):
         if not topic_title:
             topic_title = f"Topic {topic_code}"
     
-    # Clear any existing session data for this topic
-    # This forces a fresh chat context whenever navigating to a topic
-    if 'db_session_id' in session:
-        session.pop('db_session_id')
+    # Instead of clearing existing session data, we'll keep it
+    # and let the JavaScript client handle session persistence
     
     return render_template('student/topic.html', 
                           component=component, 
@@ -1067,7 +1065,7 @@ def student_initial_prompt():
             }
             
             # Return successful acknowledgement - client will connect to SSE endpoint
-            return jsonify({'success': True, 'streaming': True})
+            return jsonify({'success': True, 'streaming': True, 'session_id': session_id})
         else:
             # Non-streaming response (original functionality)
             response = get_claude_response(initial_prompt, topic_code=topic_code, mode=mode)

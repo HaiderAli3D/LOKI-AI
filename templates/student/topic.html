@@ -164,10 +164,23 @@
         const topicCode = "{{ topic_code }}";
         const topicTitle = "{{ topic_title }}";
         let currentMode = "explore"; // Default mode
-        const sessionDBId = "{{ session.get('db_session_id') }}"; // Database session ID for saving responses
+        let sessionDBId = ""; // Will be initialized from localStorage or filled by the server
+        
+        // Check localStorage for saved session ID first
+        const topicSessionKey = `session_${topicCode}`;
+        const savedSessionId = localStorage.getItem(topicSessionKey);
+        if (savedSessionId) {
+            sessionDBId = savedSessionId;
+            console.log("Using saved session ID from localStorage:", sessionDBId);
+        } else {
+            // Fall back to server-provided session ID if available
+            sessionDBId = "{{ session.get('db_session_id') }}";
+            console.log("Using server-provided session ID:", sessionDBId);
+        }
     </script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/pdf-viewer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/debug.js') }}"></script>
 </body>
 </html>
