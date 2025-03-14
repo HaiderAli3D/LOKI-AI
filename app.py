@@ -14,8 +14,7 @@ import shutil
 import time
 import re
 import subprocess
-from datetime import datetime
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -637,7 +636,7 @@ Please create a practice assessment as a PDF using LaTeX that:
 5. The assesment should have 30-45 marks and a reasonable time limit stated with it.
 6. Ensure the first page of the LaTeX PDF is identical to that of one from a real OCR A level computer science exam. It should have no quetsions on it, a field for name, candidate and center codes, date. It should have the title of the paper on it, marks on the paper, genral guidance and time given for the paper.
 7. When writing the paper YOU MUST NOT respond with anything but the LaTeX code for the exam. Only provide the LaTeX code and nothing else. Provide no headers or indicators of what the code is, just provide the code.
-8. Add lines or leave space for the student to answer under each question
+8. Add lines or leave space for the student to answer under each question.
 
 note: dont use images in the latex code
 
@@ -1548,6 +1547,361 @@ def pdf_library():
     return render_template('student/pdf_library.html', 
                           pdfs=all_pdfs,
                           user_name=session.get('user_name'))
+
+# Progress Tracking Widget Routes
+
+@app.route('/student/track-activity', methods=['POST'])
+@login_required
+def track_activity():
+    """Track user activity for streak calculation."""
+    data = request.json
+    user_id = session.get('user_id')
+    activity_type = data.get('activity_type', 'page_view')
+    session_duration = data.get('session_duration', 0)
+    
+    if not user_id:
+        return jsonify({'error': 'User not authenticated'}), 401
+    
+    try:
+        # Get current date in YYYY-MM-DD format
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        # Connect to database
+        conn = sqlite3.connect('user_database.db')
+        cursor = conn.cursor()
+        
+        # Check if user already has activity for today
+        cursor.execute(
+            "SELECT id FROM user_activity WHERE user_id = ? AND activity_date = ?",
+            (user_id, today)
+        )
+        
+        existing_activity = cursor.fetchone()
+        
+        if existing_activity:
+            # Update existing activity record
+            cursor.execute(
+                "UPDATE user_activity SET session_duration = session_duration + ? WHERE user_id = ? AND activity_date = ?",
+                (session_duration, user_id, today)
+            )
+        else:
+            # Create new activity record
+            cursor.execute(
+                "INSERT INTO user_activity (user_id, activity_date, activity_type, session_duration) VALUES (?, ?, ?, ?)",
+                (user_id, today, activity_type, session_duration)
+            )
+        
+        conn.commit()
+        
+        # Calculate current streak
+        streak_data = calculate_user_streak(user_id)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'streak': streak_data['streak'],
+            'streakAtRisk': streak_data['streak_at_risk']
+        })
+    except Exception as e:
+        print(f"Error tracking activity: {str(e)}")
+        return jsonify({'error': f'Error tracking activity: {str(e)}'}), 500
+
+@app.route('/student/get-activity-data', methods=['GET'])
+@login_required
+def get_activity_data():
+    """Get user activity data for calendar visualization."""
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'User not authenticated'}), 401
+    
+    try:
+        conn = sqlite3.connect('user_database.db')
+        cursor = conn.cursor()
+        
+        # Calculate first day of the month and last day of the month
+        today = datetime.now()
+        year = request.args.get('year', today.year, type=int)
+        month = request.args.get('month', today.month, type=int)
+        
+        start_date = datetime(year, month, 1).strftime('%Y-%m-%d')
+        # Get the last day of the month
+        if month == 12:
+            end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = datetime(year, month + 1, 1) - timedelta(days=1)
+        end_date = end_date.strftime('%Y-%m-%d')
+        
+        # Get activity data for the specified month
+        cursor.execute(
+            """
+            SELECT activity_date, activity_type, session_duration 
+            FROM user_activity 
+            WHERE user_id = ? AND activity_date BETWEEN ? AND ?
+            ORDER BY activity_date
+            """,
+            (user_id, start_date, end_date)
+        )
+        
+        activities = cursor.fetchall()
+        
+        # Calculate streak
+        streak_data = calculate_user_streak(user_id)
+        
+        # Format activity data for the calendar
+        activity_data = []
+        for date, activity_type, duration in activities:
+            # Determine activity level (1-4) based on duration or other metrics
+            # This is a simple example - you may want to use more sophisticated logic
+            level = 1  # Default level
+            if duration > 3600:  # More than 1 hour
+                level = 4
+            elif duration > 1800:  # More than 30 minutes
+                level = 3
+            elif duration > 600:  # More than 10 minutes
+                level = 2
+                
+            activity_data.append({
+                'date': date,
+                'type': activity_type,
+                'level': level
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'activityData': activity_data,
+            'currentStreak': streak_data['streak'],
+            'streakAtRisk': streak_data['streak_at_risk']
+        })
+    except Exception as e:
+        print(f"Error getting activity data: {str(e)}")
+        return jsonify({'error': f'Error getting activity data: {str(e)}'}), 500
+
+@app.route('/student/get-topic-progress', methods=['GET'])
+@login_required
+def get_topic_progress_data():
+    """Get topic progress data for spaced repetition recommendations."""
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'User not authenticated'}), 401
+    
+    try:
+        # Get database instance
+        database = get_db()
+        
+        # Get topic progress data
+        try:
+            # Try to get user-specific progress data
+            progress_data = database.get_topic_progress(user_id=user_id)
+        except (sqlite3.OperationalError, TypeError) as e:
+            # Fallback to unfiltered data if filtering by user_id fails
+            progress_data = database.get_topic_progress()
+        
+        # Format topic progress data for the frontend
+        formatted_data = []
+        for topic_code, topic_title, last_studied, proficiency, notes in progress_data:
+            formatted_data.append({
+                'topicCode': topic_code,
+                'topicTitle': topic_title,
+                'lastStudied': last_studied,
+                'proficiency': proficiency,
+                'notes': notes
+            })
+        
+        return jsonify(formatted_data)
+    except Exception as e:
+        print(f"Error getting topic progress: {str(e)}")
+        return jsonify({'error': f'Error getting topic progress: {str(e)}'}), 500
+
+@app.route('/student/mark-topic-reviewed', methods=['POST'])
+@login_required
+def mark_topic_reviewed():
+    """Mark a topic as reviewed today (updates last_studied date and tracks activity)."""
+    data = request.json
+    user_id = session.get('user_id')
+    topic_code = data.get('topic_code')
+    
+    if not user_id or not topic_code:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    
+    try:
+        # Get database instance
+        database = get_db()
+        
+        # Get existing topic data to preserve proficiency and notes
+        try:
+            # Try with user_id
+            progress_data = database.get_topic_progress(user_id=user_id)
+        except (sqlite3.OperationalError, TypeError):
+            # Fallback
+            progress_data = database.get_topic_progress()
+        
+        # Find the topic in progress data
+        topic_data = None
+        for data_topic_code, topic_title, _, proficiency, notes in progress_data:
+            if data_topic_code == topic_code:
+                topic_data = {
+                    'topic_code': data_topic_code,
+                    'topic_title': topic_title,
+                    'proficiency': proficiency,
+                    'notes': notes
+                }
+                break
+        
+        if not topic_data:
+            return jsonify({'error': 'Topic not found in progress data'}), 404
+        
+        # Update the topic progress with today's date
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        try:
+            # Try to update with user_id
+            database.update_topic_progress(
+                topic_data['topic_code'],
+                topic_data['topic_title'],
+                topic_data['proficiency'],
+                topic_data['notes'],
+                user_id=user_id,
+                last_studied=today
+            )
+        except (sqlite3.OperationalError, TypeError) as e:
+            # Fallback if user_id parameter fails
+            if "user_id" in str(e):
+                database.update_topic_progress(
+                    topic_data['topic_code'],
+                    topic_data['topic_title'],
+                    topic_data['proficiency'],
+                    topic_data['notes'],
+                    last_studied=today
+                )
+            else:
+                # Re-raise if it's some other error
+                raise
+        
+        # Also record this as an activity for streak tracking
+        conn = sqlite3.connect('user_database.db')
+        cursor = conn.cursor()
+        
+        # Check if user already has activity for today
+        cursor.execute(
+            "SELECT id FROM user_activity WHERE user_id = ? AND activity_date = ?",
+            (user_id, today)
+        )
+        
+        existing_activity = cursor.fetchone()
+        
+        if existing_activity:
+            # Update existing activity record
+            cursor.execute(
+                "UPDATE user_activity SET session_duration = session_duration + 600 WHERE user_id = ? AND activity_date = ?",
+                (user_id, today)
+            )
+        else:
+            # Create new activity record
+            cursor.execute(
+                "INSERT INTO user_activity (user_id, activity_date, activity_type, session_duration) VALUES (?, ?, ?, ?)",
+                (user_id, today, "topic_review", 600)  # 10 minutes by default
+            )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error marking topic as reviewed: {str(e)}")
+        return jsonify({'error': f'Error marking topic as reviewed: {str(e)}'}), 500
+
+# Helper function for streak calculation
+def calculate_user_streak(user_id):
+    """Calculate a user's current streak and whether it's at risk."""
+    conn = sqlite3.connect('user_database.db')
+    cursor = conn.cursor()
+    
+    # Get today's date and yesterday's date
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    two_days_ago = today - timedelta(days=2)
+    
+    # Format dates as strings
+    today_str = today.strftime('%Y-%m-%d')
+    yesterday_str = yesterday.strftime('%Y-%m-%d')
+    two_days_ago_str = two_days_ago.strftime('%Y-%m-%d')
+    
+    # Check if user has activity for today
+    cursor.execute(
+        "SELECT 1 FROM user_activity WHERE user_id = ? AND activity_date = ?",
+        (user_id, today_str)
+    )
+    has_activity_today = cursor.fetchone() is not None
+    
+    # Check if user has activity for yesterday
+    cursor.execute(
+        "SELECT 1 FROM user_activity WHERE user_id = ? AND activity_date = ?",
+        (user_id, yesterday_str)
+    )
+    has_activity_yesterday = cursor.fetchone() is not None
+    
+    # Check if user has activity for two days ago
+    cursor.execute(
+        "SELECT 1 FROM user_activity WHERE user_id = ? AND activity_date = ?",
+        (user_id, two_days_ago_str)
+    )
+    has_activity_two_days_ago = cursor.fetchone() is not None
+    
+    # Get all activity dates for this user in descending order
+    cursor.execute(
+        "SELECT activity_date FROM user_activity WHERE user_id = ? ORDER BY activity_date DESC",
+        (user_id,)
+    )
+    activity_dates = [datetime.strptime(row[0], '%Y-%m-%d').date() for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    # If no activity, streak is 0
+    if not activity_dates:
+        return {'streak': 0, 'streak_at_risk': False}
+    
+    # Calculate streak
+    streak = 0
+    streak_at_risk = False
+    
+    # If user has activity today, start counting from today
+    if has_activity_today:
+        streak = 1
+        date_to_check = yesterday
+    # If user has activity yesterday but not today, start counting from yesterday
+    # and mark streak as at risk
+    elif has_activity_yesterday:
+        streak = 1
+        date_to_check = two_days_ago
+        streak_at_risk = True
+    # If user has activity two days ago but not yesterday or today,
+    # streak is 0 (streak was broken)
+    else:
+        return {'streak': 0, 'streak_at_risk': False}
+    
+    # Continue counting streak from previous days
+    for date in activity_dates:
+        if date == today or date == yesterday:
+            # Skip today and yesterday as they were already counted
+            continue
+            
+        if date == date_to_check:
+            streak += 1
+            date_to_check = date_to_check - timedelta(days=1)
+        else:
+            # Allow for one missed day in the streak
+            if date == date_to_check - timedelta(days=1) and not streak_at_risk:
+                streak_at_risk = True
+                date_to_check = date - timedelta(days=1)
+            else:
+                # Streak is broken
+                break
+    
+    return {'streak': streak, 'streak_at_risk': streak_at_risk}
 
 @app.route('/student/delete-pdf', methods=['POST'])
 @login_required

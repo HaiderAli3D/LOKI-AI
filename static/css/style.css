@@ -1048,6 +1048,363 @@ header p {
     padding: 1.5rem 0;
 }
 
+/* New widgets row */
+.progress-widgets-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 992px) {
+    .progress-widgets-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Widget 1: Study Streak & Activity Tracker */
+.streak-widget {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--box-shadow);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.streak-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.streak-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+#streak-counter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: var(--light-color);
+    border-radius: 12px;
+}
+
+.streak-icon {
+    font-size: 1.8rem;
+}
+
+.streak-count {
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.streak-warning {
+    margin-top: 0.5rem;
+    color: #e6a700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    background-color: rgba(255, 193, 7, 0.1);
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+/* Calendar styles */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.calendar-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.calendar-nav-btn:hover {
+    background-color: var(--light-color);
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 0.25rem;
+    text-align: center;
+}
+
+.calendar-day-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 0.5rem 0;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.calendar-day {
+    aspect-ratio: 1/1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    background-color: var(--light-color);
+    color: var(--text-color);
+    cursor: default;
+    transition: transform 0.2s ease;
+}
+
+.calendar-day:hover {
+    transform: scale(1.1);
+}
+
+.calendar-day.empty {
+    background-color: transparent;
+}
+
+.calendar-day.today {
+    border: 2px solid var(--primary-color);
+    font-weight: 600;
+}
+
+.calendar-day.activity-level-1 {
+    background-color: rgba(116, 101, 240, 0.25);
+}
+
+.calendar-day.activity-level-2 {
+    background-color: rgba(116, 101, 240, 0.5);
+}
+
+.calendar-day.activity-level-3 {
+    background-color: rgba(116, 101, 240, 0.75);
+    color: white;
+}
+
+.calendar-day.activity-level-4 {
+    background-color: rgba(116, 101, 240, 1);
+    color: white;
+}
+
+/* Widget 2: Spaced Repetition */
+.spaced-repetition-widget {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--box-shadow);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.spaced-repetition-header {
+    margin-bottom: 1rem;
+}
+
+.spaced-repetition-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.reminder-item {
+    background-color: var(--light-color);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: transform 0.2s ease;
+}
+
+.reminder-item:hover {
+    transform: translateX(5px);
+}
+
+.reminder-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.reminder-topic {
+    font-weight: 600;
+}
+
+.reminder-proficiency {
+    white-space: nowrap;
+}
+
+.reminder-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.reminder-last-studied {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.urgency-high {
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+.urgency-medium {
+    color: var(--warning-color);
+    font-weight: 500;
+}
+
+.mark-reviewed-btn {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.no-reminders {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-muted);
+    background-color: rgba(116, 101, 240, 0.05);
+    border-radius: 12px;
+}
+
+/* Widget 3: Exam Countdown */
+.countdown-widget {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--box-shadow);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.countdown-widget h3 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-color);
+}
+
+.exam-countdown-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.exam-countdown-item {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--light-color);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: transform 0.2s ease;
+}
+
+.exam-countdown-item:hover {
+    transform: translateY(-5px);
+}
+
+.exam-countdown-item.urgency-high {
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.exam-countdown-item.urgency-medium {
+    background-color: rgba(255, 152, 0, 0.1);
+}
+
+.countdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.countdown-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.exam-date {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.countdown-circle-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.countdown-circle {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.countdown-circle-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background-color: var(--primary-color);
+    transform-origin: right center;
+}
+
+.countdown-circle-center {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background-color: white;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2;
+}
+
+.countdown-days {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.countdown-label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Regular progress sections */
 .progress-section {
     background-color: var(--card-bg);
     border-radius: 16px;

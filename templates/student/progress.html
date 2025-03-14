@@ -27,6 +27,44 @@
             <main class="progress-container">
                 <h2>Your Learning Progress</h2>
                 
+                <!-- New Widgets Row -->
+                <div class="progress-widgets-row">
+                    <!-- Widget 1: Study Streak & Activity Tracker -->
+                    <div class="streak-widget">
+                        <div class="streak-header">
+                            <h3>Study Streak</h3>
+                        </div>
+                        <div id="streak-counter">
+                            <span class="streak-icon">🔥</span>
+                            <span class="streak-count">0-day streak</span>
+                        </div>
+                        <div id="activity-calendar">
+                            <!-- Calendar will be rendered by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Widget 2: Spaced Repetition Reminder -->
+                    <div class="spaced-repetition-widget">
+                        <div class="spaced-repetition-header">
+                            <h3>Topics to Review Today</h3>
+                        </div>
+                        <div id="spaced-repetition-list">
+                            <!-- Reminders will be rendered by JavaScript -->
+                            <div class="no-reminders">
+                                <p>Loading topic recommendations...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Widget 3: Exam Countdown Timer -->
+                    <div class="countdown-widget">
+                        <h3>Exam Countdown</h3>
+                        <div id="exam-countdown" class="exam-countdown-container">
+                            <!-- Countdown will be rendered by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="progress-section">
                     <h3>Topic Understanding</h3>
                     
@@ -145,5 +183,6 @@
     
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/global-chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/progress-widgets.js') }}"></script>
 </body>
 </html>
