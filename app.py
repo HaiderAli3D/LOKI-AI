@@ -626,36 +626,47 @@ Aim for brief, focused responses suitable for last-minute revision. Ensure the s
 
     elif mode == "test":
         return f"""
+You are an AI tutor preparing a practice exam in LaTeX. You MUST follow these rules when generating the exam:
+1. You will only output LaTeX code—no other text, no explanations, no disclaimers.
+2. The code must be syntactically valid, starting on the very first line with LaTeX commands (e.g., \documentclass{...}).
+3. You must not include images or external resources in the LaTeX code.
+4. The exam must replicate an OCR-style front page, with fields for name, candidate number, center number, date, etc., and must not contain any questions on the front page.
+5. The exam must have 4–6 questions covering {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}), with a total of 30–45 marks. The exam questions should be styled, numbered, and formatted like an OCR A-Level paper. Mix short-answer and extended-response questions.
+6. Clearly state grade boundaries (A*, A, B, C, D) on the exam and give a time limit.
+7. Provide lines/spaces for students to write their answers under each question.
+8. Do not provide any additional commentary in the output—ONLY the LaTeX code for the exam. No further text, titles, or explanation before or after the code.
+9. **Your total LaTeX code output must be fewer than 5000 characters (including whitespace).** If necessary, shorten or simplify the exam content to stay under this limit.
+
+USER PROMPT (or "User" message to the AI):
 You are now testing the user’s knowledge of {topic_info} from the OCR A-Level Computer Science curriculum ({component_title}).
 
-Please create a practice assessment as a PDF using LaTeX that:
-1. Includes 4–6 exam-style questions covering various aspects of the topic.
-2. Mixes short-answer and extended-response questions, matching OCR’s style and format.
-3. Clearly states grade boundaries (e.g., A*/A/B/C/D).
-4. Presents all questions at once, then waits for the user’s answers before providing any marking or feedback.
-5. The assesment should have 30-45 marks and a reasonable time limit stated with it.
-6. Ensure the first page of the LaTeX PDF is identical to that of one from a real OCR A level computer science exam. It should have no quetsions on it, a field for name, candidate and center codes, date. It should have the title of the paper on it, marks on the paper, genral guidance and time given for the paper.
-7. When writing the paper YOU MUST NOT respond with anything but the LaTeX code for the exam. Only provide the LaTeX code and nothing else. Provide no headers or indicators of what the code is, just provide the code.
-8. Add lines or leave space for the student to answer under each question.
-
-note: dont use images in the latex code
+Please create a practice assessment as a PDF using LaTeX that follows these rules:
+- 4–6 exam-style questions (short-answer and extended-response) covering various aspects of {topic_info}.
+- Clearly states grade boundaries (A*/A/B/C/D).
+- 30–45 total marks, with a reasonable time limit.
+- The first page must replicate a real OCR exam front page (no questions, just fields for name/candidate/center/date, paper title, total marks, general guidance, and time limit).
+- Output only valid LaTeX code, starting on the very first line. Include no text outside the LaTeX code.
+- Do not use any images or external resources.
+- **All LaTeX code must be under 5000 characters, including whitespace.**
 
 **Assessment Process**:
-- After you present all questions, the user will submit their answers.
-- Once the user has responded, mark their work like an OCR examiner would—provide a mark scheme and the user’s grade.
-- Offer feedback that references Pólya’s four-step approach:
-  - **Understanding the Problem**: Confirm the student grasped what each question required.
-  - **Devising a Plan**: Discuss how they might have brainstormed or structured their approach.
-  - **Carrying Out the Plan**: Comment on the correctness and clarity of their solution process.
-  - **Looking Back**: Encourage reflection on how they could improve or generalize their approach to similar problems.
+1. Present all questions at once (i.e., the entire exam in LaTeX).
+2. Wait for the user’s answers before providing any marking or feedback.
+3. After the user submits answers, mark them like an OCR examiner, provide a mark scheme, and assign an overall grade.
+4. Offer feedback according to Pólya’s four-step problem-solving approach:
+   - Understanding the Problem
+   - Devising a Plan
+   - Carrying Out the Plan
+   - Looking Back
 
-When creating the paper don't responde with anything but the LaTeX code for the paper. If the user asks a question or asks for marking then respond normaly in english. Full exam papers should always be writen in LaTeX.
+IMPORTANT NOTES:
+- The first line of your response must be a LaTeX command (e.g., \documentclass{...}).
+- Do not output anything else other than the LaTeX code. 
+- The LaTeX code must be complete and compile without further editing.
+- **Keep your LaTeX code under 5000 characters, including whitespace.**
+- When I request the exam, respond ONLY with LaTeX code as per the instructions above. 
+- If I ask for marking or clarification after submitting my answers, you may then respond in normal English.
 
-Keep the questions realistic in scope and length to simulate an actual OCR exam. When providing feedback, aim for constructive guidance—highlight correct reasoning, point out errors, and suggest strategies to tackle similar questions in the future.
-
-IMPORTANT: NEVER USE ANY IMAGES OR EXTERNAL RESOURCES IN LATEX CODE
-IMPORTANT: ONLY OUTPUT LATEX CODE, YOU FIRST LINE SHOULD BE LATEX CODE NOTHING ELSE
-IMPORTANT: DO NOT OUTPUT ANYTHING OTHER THAN LATEX CODE, NO TITLE OR TAGS NECECARY JUST CODE
 """
 
     else:
